@@ -1,0 +1,1 @@
+kneipy-core is a small library to do double entry based accounting with money as well as goods. From a technical side it's mainly a collection of fairly complex SQLAlchemy model classes.
