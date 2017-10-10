@@ -1,4 +1,5 @@
 import os
+import getpass
 import unittest
 
 import alembic
@@ -6,16 +7,24 @@ import sqlalchemy as sa
 import alembic.config
 from alembic.migration import MigrationContext
 from alembic.autogenerate import compare_metadata
-from .lib.sqlalchemy_session_scope import session_scope
 
 from . import database
+from .lib.sqlalchemy_session_scope import \
+    session_scope
 
 
 class DbTestCase(unittest.TestCase):
     @classmethod
     def database_setup(cls):
         # Datenbankverbindung herstellen
-        database.connect('postgresql://jens@localhost/kneipy-tests', echo=False)
+        database_uri = os.environ.get(
+            'DATABASE_URI_TESTS',
+            'postgresql://{}@localhost/kneipy-tests'.format(
+                getpass.getuser()
+
+            )
+        )
+        database.connect(database_uri, echo=False)
         assert database.engine.connect()
 
         # TODO: Sicherstellen, dass dies keine Datenbank mit relevanten Daten ist

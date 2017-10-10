@@ -1,3 +1,5 @@
+#!/bin/bash
+
 psql postgres <<EOF
     DROP DATABASE IF EXISTS "kneipy-dev";
     DROP DATABASE IF EXISTS "kneipy-tests";

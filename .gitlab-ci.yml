@@ -1,12 +1,39 @@
-test:
-  image: $CI_REGISTRY/jens/docker-images:jens-base
+stages:
+ - quick test
+ - test
+
+.install-deps-jessie: &install-deps-jessie
+  image: debian:jessie
+  before_script:
+  - echo 'deb http://deb.debian.org/debian jessie-backports main' > /etc/apt/sources.list.d/backports.list
+  - apt-get -qq update -y
+  - apt-get -qq install -t jessie-backports -y postgresql-client-9.6 libpq5 libpq-dev
+  - apt-get -qq install -y build-essential python3-pip python3-virtualenv python3-dev
+
+.install-deps-buster: &install-deps-buster
+  image: debian:buster
+  before_script:
+  - apt-get -qq update -y
+  - apt-get -qq install -y postgresql-client-10 libpq5 libpq-dev
+  - apt-get -qq install -y build-essential python3-pip python3-virtualenv python3-dev
+
+.using-pg9-5: &using-pg9-5
   services:
   - postgres:9.6
+
+.using-pg9-6: &using-pg9-6
+  services:
+  - postgres:9.6
+
+.using-pg10: &using-pg10
+  services:
+  - postgres:10
+
+.run-tests: &run-tests
   script:
-  - mkdir -p $XDG_CACHE_HOME
   - PGUSER=postgres PGDATABASE=postgres PGHOST=postgres ./.setup-database.sh
-  - virtualenv .venv
-  - .venv/bin/pip install -e ./kneipy-core
+  - python3 -m virtualenv --python=/usr/bin/python3 .venv
+  - .venv/bin/pip install -e .
   - .venv/bin/nosetests --with-coverage --cover-package=kneipy_core --cover-branches --cover-html -dv
   artifacts:
     when: on_success
@@ -14,3 +41,45 @@ test:
       - cover/
     name: "${CI_BUILD_REF_SLUG}_${CI_BUILD_NAME}_${CI_BUILD_REF}"
     expire_in: 2 weeks
+  variables:
+    DATABASE_URI_TESTS: postgresql://kneipy-dev:kneipy-dev@postgres/kneipy-tests
+
+
+test with prebuild image:
+  <<: *run-tests
+  <<: *using-pg9-6
+  stage: quick test
+  image: $CI_REGISTRY/jens/docker-images:av_intranet
+
+test-jessie-pg9.5:
+  <<: *install-deps-jessie
+  <<: *run-tests
+  <<: *using-pg9-5
+  stage: test
+
+test-jessie-pg9.6:
+  <<: *install-deps-jessie
+  <<: *run-tests
+  <<: *using-pg9-6
+  stage: test
+
+test-buster-pg9.5:
+  <<: *install-deps-buster
+  <<: *run-tests
+  <<: *using-pg9-5
+  stage: test
+
+test-buster-pg9.6:
+  <<: *install-deps-buster
+  <<: *run-tests
+  <<: *using-pg9-6
+  stage: test
+
+test-buster-pg10:
+  <<: *install-deps-buster
+  <<: *run-tests
+  <<: *using-pg10
+  stage: test
+  services:
+  - postgres:10
+
