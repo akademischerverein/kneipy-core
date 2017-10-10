@@ -1,5 +1,5 @@
 test:
-  image: $CI_REGISTRY/jens/docker-images:base
+  image: $CI_REGISTRY/jens/docker-images:jens-base
   services:
   - postgres:9.6
   script:
