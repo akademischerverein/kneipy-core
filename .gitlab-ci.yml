@@ -1,0 +1,16 @@
+test:
+  image: $CI_REGISTRY/jens/docker-images:base
+  services:
+  - postgres:9.6
+  script:
+  - mkdir -p $XDG_CACHE_HOME
+  - PGUSER=postgres PGDATABASE=postgres PGHOST=postgres ./.setup-database.sh
+  - virtualenv .venv
+  - .venv/bin/pip install -e ./kneipy-core
+  - .venv/bin/nosetests --with-coverage --cover-package=kneipy_core --cover-branches --cover-html -dv
+  artifacts:
+    when: on_success
+    paths:
+      - cover/
+    name: "${CI_BUILD_REF_SLUG}_${CI_BUILD_NAME}_${CI_BUILD_REF}"
+    expire_in: 2 weeks
