@@ -7,50 +7,54 @@ from . import api, test_util
 from .database import Person, Account, Product, \
     AccountPerson, AccountResult, \
     AccountProfits, AccountBalances, \
-    AccountExpenses, AccountBalanceSheet
+    AccountExpenses, BalanceSheet
 
 
 class ApiTest(test_util.DbTestCase):
     def create_simple_balance_sheet(self):
+        self.balancesheet = BalanceSheet(name='simple test')
+
         self.accounts = {
-            'balancesheet': AccountBalanceSheet(name='simple test')
-        }
-        self.accounts.update({
             'results': AccountResult(
-                parent=self.accounts['balancesheet'],
+                balancesheet=self.balancesheet,
                 name='Operational Results'
             ),
             'balances': AccountBalances(
-                parent=self.accounts['balancesheet'],
+                balancesheet=self.balancesheet,
                 name='Balances'
             ),
             'johndoe': AccountPerson(
-                parent=self.accounts['balancesheet'],
+                balancesheet=self.balancesheet,
                 person=Person(name='John Doe')
             ),
             'supplier': AccountPerson(
-                parent=self.accounts['balancesheet'],
+                balancesheet=self.balancesheet,
                 person=Person(name='Supplier Inc.')
             )
-        })
+        }
         self.accounts.update({
             'profits': AccountProfits(
+                balancesheet=self.balancesheet,
                 parent=self.accounts['results'],
                 name='Profits'
             ),
             'expenses': AccountExpenses(
+                balancesheet=self.balancesheet,
                 parent=self.accounts['results'],
                 name='Expenses'
             ),
             'bank': AccountBalances(
+                balancesheet=self.balancesheet,
                 parent=self.accounts['balances'],
                 name='Bank Account'
             ),
             'store': AccountBalances(
+                balancesheet=self.balancesheet,
                 parent=self.accounts['balances'],
                 name='Inventory of store'
             )
         })
+        self.session.add(self.balancesheet)
         for account in self.accounts.values():
             self.session.add(account)
         self.session.commit()
@@ -58,7 +62,8 @@ class ApiTest(test_util.DbTestCase):
     def test_create_simple_balance_sheet(self):
         self.create_simple_balance_sheet()
         n.eq_(len(self.session.query(Account).all()), len(self.accounts))
-        n.eq_(len(self.accounts['balancesheet'].children), 4)
+        n.eq_(len(self.balancesheet.top_level_accounts), 4)
+        n.eq_(len(self.balancesheet.accounts), len(self.accounts))
         n.eq_(len(self.accounts['results'].children), 2)
 
     def add_products(self):
@@ -110,9 +115,8 @@ class ApiTest(test_util.DbTestCase):
         self.create_simple_balance_sheet()
         self.add_products()
         # Let's simulate getting some stock
-        with api.transaction_group(
+        with self.balancesheet.transact(
                 text='Accquire stock',
-                session=self.session,
                 receiptdate=datetime.datetime.now().date()
                 ) as t:
             t.transaction(
@@ -139,21 +143,21 @@ class ApiTest(test_util.DbTestCase):
                 .one(),
                 amount=2000
             )
-        self.assert_balancesheet_invariants(self.accounts['balancesheet'])
+        self.assert_balancesheet_invariants(self.balancesheet)
         n.eq_(
-            self.accounts['balancesheet']
+            self.balancesheet
             .cumulative_totals_and_balance[Product.EURO_CT_ID]
             .total_debit,
             2000
         )
         n.eq_(
-            self.accounts['balancesheet']
+            self.balancesheet
             .cumulative_totals_and_balance[self.products['water'].id]
             .total_debit,
             12
         )
         n.eq_(
-            self.accounts['balancesheet']
+            self.balancesheet
             .cumulative_totals_and_balance[self.products['beer'].id]
             .total_debit,
             20
@@ -177,9 +181,12 @@ class ApiTest(test_util.DbTestCase):
             20
         )
         # Let's sell a beer and a water to John Doe
+        # let's also use the api.transaction_group instead
+        # of balancesheet.transact, which is only a wrapper
         with api.transaction_group(
                 text='Sell to John Doe',
                 session=self.session,
+                balancesheet=self.balancesheet,
                 receiptdate=datetime.datetime.now().date()
                 ) as t:
             t.transaction(
@@ -206,7 +213,7 @@ class ApiTest(test_util.DbTestCase):
                 .one(),
                 amount=200
             )
-        self.assert_balancesheet_invariants(self.accounts['balancesheet'])
+        self.assert_balancesheet_invariants(self.balancesheet)
         n.eq_(
             self.accounts['store']
             .cumulative_totals_and_balance[Product.EURO_CT_ID]
@@ -229,6 +236,7 @@ class ApiTest(test_util.DbTestCase):
         with api.transaction_group(
                 text='Paymnet from John Doe',
                 session=self.session,
+                balancesheet=self.balancesheet,
                 receiptdate=datetime.datetime.now().date()
                 ) as t:
             t.transaction(
@@ -240,7 +248,7 @@ class ApiTest(test_util.DbTestCase):
                 .one(),
                 amount=200
             )
-        self.assert_balancesheet_invariants(self.accounts['balancesheet'])
+        self.assert_balancesheet_invariants(self.balancesheet)
         n.eq_(
             self.accounts['johndoe']
             .cumulative_totals_and_balance[Product.EURO_CT_ID]

@@ -1,6 +1,4 @@
 import enum
-import uuid
-import collections
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
@@ -11,44 +9,10 @@ from sqlalchemy.dialects.postgresql import ENUM
 from kneipy_core.lib.sqlalchemy_uuid import GUID
 
 from .base import Base
+from .util import TotalsAndBalancesPerProductType, \
+    add_totals_and_balance
 from .product import Product
 from .transaction import Transaction
-
-
-@enum.unique
-class AccountTypes(enum.Enum):
-    # ACHTUNG!
-    # Änderungen in den möglichen Werten von ENUM-Spalten
-    # wie Account.type werden von alembic nicht bemerkt und entsprechend
-    # funktioniert das automatische Generieren der Migration nicht.
-    # => manuell schreiben
-    BalanceSheet = 1
-    BalanceSheetOpening = 2
-    Temp = 10
-    Person = 20
-    Result = 30
-    Profits = 31
-    Expenses = 32
-    Balances = 40
-
-
-TotalsAndBalance = collections.namedtuple(
-    'TotalsAndBalance',
-    'product_name total_credit total_debit balance'.split()
-)
-
-
-class TotalsAndBalancesPerProductType(sa.types.TypeDecorator):
-    impl = sa.types.JSON
-
-    def process_bind_param(self, value, dialect):
-        raise NotImplementedError()
-
-    def process_result_value(self, value, dialect):
-        res = {}
-        for product_id, data in value.items():
-            res[uuid.UUID(product_id)] = TotalsAndBalance(**data)
-        return res
 
 
 def totals_and_balances_query(id_column):
@@ -114,6 +78,22 @@ def totals_and_balances_query(id_column):
     )
 
 
+@enum.unique
+class AccountTypes(enum.Enum):
+    # ACHTUNG!
+    # Änderungen in den möglichen Werten von ENUM-Spalten
+    # wie Account.type werden von alembic nicht bemerkt und entsprechend
+    # funktioniert das automatische Generieren der Migration nicht.
+    # => manuell schreiben
+    BalanceSheetOpening = 1
+    Temp = 10
+    Person = 20
+    Result = 30
+    Profits = 31
+    Expenses = 32
+    Balances = 40
+
+
 class Account(Base):
     __tablename__ = "account"
     id = sa.Column(
@@ -123,6 +103,10 @@ class Account(Base):
     )
 
     type = sa.Column(ENUM(AccountTypes), nullable=False)
+
+    balancesheet_id = sa.Column(sa.ForeignKey('balancesheet.id'))
+    balancesheet = relationship('BalanceSheet', back_populates='accounts')
+
     parent_id = sa.Column(
         GUID, nullable=True
     )
@@ -140,31 +124,7 @@ class Account(Base):
         'Account', primaryjoin=(sa.and_(parent_id == id, parent_type == type)),
         remote_side=[parent_id, parent_type],
         back_populates='parent'
-
     )
-
-    @property
-    def balancesheet(self):
-        if self.type == AccountTypes.BalanceSheet:
-            return self
-
-        instance_state = sa.inspect(self)
-        if 'parent' in instance_state.unloaded:
-            instance_state.session.query(
-                self.__class__
-            ).options(
-                sa.orm.selectinload('parent')
-                .selectinload('parent')
-                .selectinload('parent')
-                .selectinload('parent')
-                .selectinload('parent')
-                .selectinload('parent')
-                .selectinload('parent')
-                .selectinload('parent')
-                .selectinload('parent')
-                .selectinload('parent')
-            ).filter_by(id=self.id).all()
-        return self.parent.balancesheet
 
     totals_and_balance = sa.orm.column_property(
         totals_and_balances_query(
@@ -174,14 +134,6 @@ class Account(Base):
 
     @property
     def cumulative_totals_and_balance(self):
-        def add_summen_und_balance(a, b):
-            assert a.product_name == b.product_name
-            return TotalsAndBalance(
-                product_name=a.product_name,
-                total_debit=a.total_debit + b.total_debit,
-                total_credit=a.total_credit + b.total_credit,
-                balance=a.balance + b.balance
-            )
         res = {}
         # 10 Ebenen des Konten-Baumes laden mit einem Query pro Ebene
         # Kostet leider einen zusätzlich, da die aktuelle Instanz
@@ -203,19 +155,21 @@ class Account(Base):
                 .filter_by(id=self.id).all()
 
         for child in self.children:
-            for product_id, data in child.cumulative_totals_and_balance.items():
+            ctab = child.cumulative_totals_and_balance
+            for product_id, data in ctab.items():
                 if product_id not in res:
                     res[product_id] = data
                 else:
-                    res[product_id] = add_summen_und_balance(
+                    res[product_id] = add_totals_and_balance(
                         res[product_id], data
                     )
         for product_id, data in self.totals_and_balance.items():
             if product_id not in res:
                 res[product_id] = data
             else:
+                # FIXME: Diese Schleife sollte nicht sein
                 for k in 'total_debit total_credit balance'.split():
-                    res[product_id] = add_summen_und_balance(
+                    res[product_id] = add_totals_and_balance(
                         res[product_id], data
                     )
         return res
@@ -240,18 +194,23 @@ class Account(Base):
         sa.CheckConstraint("""
     (type = 'Temp'     AND person_id IS NULL     AND name IS NULL    ) OR
     (type = 'Person'   AND person_id IS NOT NULL AND name IS NULL    ) OR
-    (type IN ('BalanceSheet', 'Balances', 'Result', 'Profits', 'Expenses') AND
+    (type IN ('Balances', 'Result', 'Profits', 'Expenses') AND
         person_id IS NULL AND name IS NOT NULL
     )
         """, name='Account_type_based_null_check'),
         sa.CheckConstraint("""
-    (parent_id IS NULL AND parent_type IS NULL AND type = 'BalanceSheet') OR
-    (parent_id IS NOT NULL AND parent_type IS NOT NULL) AND (
-        (type = parent_type) OR
-        (type IN ('Person', 'Result', 'Balances', 'Temp', 'BalanceSheetOpening')
-         AND parent_type = 'BalanceSheet') OR
-        (type IN ('Profits', 'Expenses') AND parent_type = 'Result')
-    )
+        (
+            (type IN (
+                'Person', 'Result',
+                'Balances', 'Temp',
+                'BalanceSheetOpening')
+            ) AND
+            (parent_type IS NULL)
+        ) OR (
+            type = parent_type AND type IS NOT NULL
+        ) OR (
+            type IN ('Profits', 'Expenses') AND parent_type = 'Result'
+        )
         """, name='Account_parent_type_check'),
         sa.ForeignKeyConstraint(
             [
@@ -293,11 +252,6 @@ class AccountNameMixin():
             'name',
             sa.Column(sa.Unicode, nullable=True)
         )
-
-
-class AccountBalanceSheet(Account, AccountNameMixin):
-    __mapper_args__ = {'polymorphic_identity': AccountTypes.BalanceSheet}
-    # name Spalte aus AccountNameMixin
 
 
 class AccountBalances(Account, AccountNameMixin):

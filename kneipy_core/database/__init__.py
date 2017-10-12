@@ -7,9 +7,10 @@ from .person import Person
 from .account import Account, AccountTemp, \
     AccountPerson, AccountResult, \
     AccountProfits, AccountBalances, \
-    AccountExpenses, AccountBalanceSheet
+    AccountExpenses
 from .product import Product
 from .transaction import Transaction
+from .balancesheet import BalanceSheet
 from .transactiongroup import TransactionGroup
 
 Session = None

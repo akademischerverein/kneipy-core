@@ -2,6 +2,8 @@ from contextlib import contextmanager
 import sqlalchemy as sa
 from .database import Product, Account, \
     TransactionGroup, Transaction
+import sys
+from . import database
 
 
 class TransactionInterface():
@@ -46,6 +48,7 @@ class TransactionInterface():
             )
         session.execute(query, [
             {
+                'balancesheet_id': self.transaction_group.balancesheet_id,
                 'transaction_group_id': self.transaction_group.id,
                 'credit_account_id': b['credit'].id,
                 'debit_account_id': b['debit'].id,
@@ -64,8 +67,9 @@ class TransactionInterface():
 
 
 @contextmanager
-def transaction_group(session, text, receiptdate, receipt=None):
+def transaction_group(session, balancesheet, text, receiptdate, receipt=None):
     tg = TransactionGroup(
+        balancesheet=balancesheet,
         receiptdate=receiptdate, receipt=receipt,
         text=text
     )

@@ -78,6 +78,9 @@ class DbTestCase(unittest.TestCase):
         # us creating a new one with a specified connection
         database.Session.remove()
 
+        if 'QUERY_ECHO' in os.environ:
+            database.engine.echo = True
+
         # bind an individual Session to the connection
         self.session = database.Session(bind=self.connection)
 
