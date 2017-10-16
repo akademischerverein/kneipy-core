@@ -35,6 +35,6 @@ __all__ = [
     'AccountPerson', 'AccountResult',
     'AccountProfits', 'AccountBalances',
     'AccountExpenses', 'AccountBalanceSheet',
-    'Product',
+    'Product', 'BalanceSheet',
     'Transaction', 'TransactionGroup'
 ]
