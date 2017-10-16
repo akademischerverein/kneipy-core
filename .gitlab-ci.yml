@@ -31,9 +31,13 @@ stages:
 
 .run-tests: &run-tests
   script:
-  - PGUSER=postgres PGDATABASE=postgres PGHOST=postgres ./.setup-database.sh
   - python3 -m virtualenv --python=/usr/bin/python3 .venv
   - .venv/bin/pip install -e .
+  - PGUSER=postgres PGDATABASE=postgres PGHOST=postgres ./.setup-database.sh
+  - DATABASE_URI=$DATABASE_URI_TESTS .venv/bin/alembic upgrade head
+  - DATABASE_URI=$DATABASE_URI_TESTS .venv/bin/alembic downgrade base
+  - DATABASE_URI=$DATABASE_URI_TESTS .venv/bin/alembic upgrade head
+  - DATABASE_URI=$DATABASE_URI_TESTS .venv/bin/alembic downgrade base
   - .venv/bin/nosetests --with-coverage --cover-package=kneipy_core --cover-branches --cover-html -dv
   artifacts:
     when: on_success
