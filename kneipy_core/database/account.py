@@ -11,6 +11,7 @@ from kneipy_core.lib.sqlalchemy_uuid import GUID
 from .base import Base
 from .util import TotalsAndBalancesPerProductType, \
     add_totals_and_balance
+from .mixins import ExternalRefMixin
 from .product import Product
 from .transaction import Transaction
 
@@ -94,7 +95,7 @@ class AccountTypes(enum.Enum):
     Balances = 40
 
 
-class Account(Base):
+class Account(Base, ExternalRefMixin):
     __tablename__ = "account"
     id = sa.Column(
         GUID,
@@ -185,50 +186,50 @@ class Account(Base):
     # NOT NULL / IS NULL prüfen abhängig von der type Spalte
     #
     # ACHTUNG!
-    # alembíc revision --autogenerate erkennt Änderungen hier nicht
-    # genauso wie die Assertion im Setup-Code der Tests (die ebenfalls
-    # alembic nutzt).
+    # alembíc revision --autogenerate erkennt Änderungen hier -
+    # genauso wie die Assertion im Setup-Code der Tests, die ebenfalls
+    # alembic nutzt - NICHT.
     # Deshalb: DRINGEND manuell Migration schreiben bei Änderungen!
     #
-    __table_args__ = (
-        sa.CheckConstraint("""
-    (type = 'Temp'     AND person_id IS NULL     AND name IS NULL    ) OR
-    (type = 'Person'   AND person_id IS NOT NULL AND name IS NULL    ) OR
-    (type IN ('Balances', 'Result', 'Profits', 'Expenses') AND
-        person_id IS NULL AND name IS NOT NULL
-    )
-        """, name='Account_type_based_null_check'),
-        sa.CheckConstraint("""
-        (
-            (type IN (
-                'Person', 'Result',
-                'Balances', 'Temp',
-                'BalanceSheetOpening')
-            ) AND
-            (parent_type IS NULL)
-        ) OR (
-            type = parent_type AND type IS NOT NULL
-        ) OR (
-            type IN ('Profits', 'Expenses') AND parent_type = 'Result'
+    @declared_attr
+    def __table_args__(self):
+        return tuple(ExternalRefMixin.table_args() + [
+            sa.CheckConstraint("""
+        (type = 'Temp'     AND person_id IS NULL     AND name IS NULL    ) OR
+        (type = 'Person'   AND person_id IS NOT NULL AND name IS NULL    ) OR
+        (type IN ('Balances', 'Result', 'Profits', 'Expenses') AND
+            person_id IS NULL AND name IS NOT NULL
         )
-        """, name='Account_parent_type_check'),
-        sa.ForeignKeyConstraint(
-            [
-                'parent_id',
-                'parent_type',
-            ], [
-                'account.id',
-                'account.type'
-            ],
-            onupdate="RESTRICT", ondelete="RESTRICT",
-            name='account_parent_fk'
-        ),
-        sa.UniqueConstraint(
-            'type',
-            'id',
-            name='Account_type_id_unique'
-        )
-    )
+            """, name='type_based_null_check'),
+            sa.CheckConstraint("""
+            (
+                (type IN (
+                    'Person', 'Result',
+                    'Balances', 'Temp',
+                    'BalanceSheetOpening')
+                ) AND
+                (parent_type IS NULL)
+            ) OR (
+                type = parent_type AND type IS NOT NULL
+            ) OR (
+                type IN ('Profits', 'Expenses') AND parent_type = 'Result'
+            )
+            """, name='parent_type_check'),
+            sa.ForeignKeyConstraint(
+                [
+                    'parent_id',
+                    'parent_type',
+                ], [
+                    'account.id',
+                    'account.type'
+                ],
+                onupdate="RESTRICT", ondelete="RESTRICT",
+            ),
+            sa.UniqueConstraint(
+                'type',
+                'id',
+            )
+        ])
 
 
 class AccountTemp(Account):

@@ -1,10 +1,12 @@
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
-
+from sqlalchemy.ext.declarative import \
+    declared_attr
 from .base import Base
+from .mixins import ExternalRefMixin
 
 
-class TransactionGroup(Base):
+class TransactionGroup(Base, ExternalRefMixin):
     __tablename__ = "transaction_group"
     balancesheet_id = sa.Column(
         sa.ForeignKey(
@@ -39,11 +41,13 @@ class TransactionGroup(Base):
         nullable=False
     )
 
-    __table_args__ = (
-        sa.PrimaryKeyConstraint(
-            'balancesheet_id', 'id'
-        ),
-    )
+    @declared_attr
+    def __table_args__(self):
+        return tuple(ExternalRefMixin.table_args() + [
+            sa.PrimaryKeyConstraint(
+                'balancesheet_id', 'id'
+            )
+        ])
 
 
 update_transaction_group_id_increment_trigger = sa.DDL("""
