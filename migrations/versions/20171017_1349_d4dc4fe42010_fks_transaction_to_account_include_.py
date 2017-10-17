@@ -29,7 +29,6 @@ def upgrade():
 def downgrade():
     op.create_foreign_key('fk_transaction_debit_account_id_account', 'transaction', 'account', ['debit_account_id'], ['id'], onupdate='RESTRICT', ondelete='RESTRICT')
     op.create_foreign_key('fk_transaction_credit_account_id_account', 'transaction', 'account', ['credit_account_id'], ['id'], onupdate='RESTRICT', ondelete='RESTRICT')
-    op.drop_constraint(op.f('uq_account_balancesheet_id'), 'account', type_='unique')
     op.drop_constraint('debit_account', 'transaction', type_='foreignkey')
     op.drop_constraint('credit_account', 'transaction', type_='foreignkey')
     op.drop_constraint(op.f('uq_account_balancesheet_id'), 'account', type_='unique')

@@ -7,7 +7,7 @@ from . import api, test_util
 from .database import Person, Account, Product, \
     AccountPerson, AccountResult, \
     AccountProfits, AccountBalances, \
-    AccountExpenses, BalanceSheet
+    AccountExpenses, BalanceSheet, Transaction
 
 
 class ApiTest(test_util.DbTestCase):
@@ -114,8 +114,9 @@ class ApiTest(test_util.DbTestCase):
     def test_simple_transactions(self):
         self.create_simple_balance_sheet()
         self.add_products()
-        # Let's simulate getting some stock
-        with self.balancesheet.transact(
+
+        # Erstmal etwas Inventar einkaufen
+        with self.balancesheet.transact_orm(
                 text='Accquire stock',
                 receiptdate=datetime.datetime.now().date()
                 ) as t:
@@ -180,37 +181,35 @@ class ApiTest(test_util.DbTestCase):
             .total_credit,
             20
         )
-        # Let's sell a beer and a water to John Doe
-        # let's also use the api.transaction_group instead
-        # of balancesheet.transact, which is only a wrapper
-        with api.transaction_group(
-                text='Sell to John Doe',
-                session=self.session,
-                balancesheet=self.balancesheet,
+
+        # Ein Bier und ein Wasser an John Doe verkaufen
+        # Lass uns außerdem mal das ORM etwas vermeiden
+        with self.balancesheet.transact_core(
+                text='Accquire stock',
                 receiptdate=datetime.datetime.now().date()
                 ) as t:
             t.transaction(
                 text='1 bottle of beer',
-                credit=self.accounts['store'],
-                debit=self.accounts['johndoe'],
-                product=self.products['beer'],
+                credit_account_id=self.accounts['store'].id,
+                debit_account_id=self.accounts['johndoe'].id,
+                product_id=self.products['beer'].id,
                 amount=1
             )
             t.transaction(
                 text='1 bottle of water',
-                credit=self.accounts['store'],
-                debit=self.accounts['johndoe'],
-                product=self.products['water'],
+                credit_account_id=self.accounts['store'].id,
+                debit_account_id=self.accounts['johndoe'].id,
+                product_id=self.products['water'].id,
                 amount=1
             )
-            # for - let's say - 2€
+            # Für 2€
             t.transaction(
                 text='payment',
-                credit=self.accounts['johndoe'],
-                debit=self.accounts['profits'],
-                product=self.session.query(Product)
+                credit_account_id=self.accounts['johndoe'].id,
+                debit_account_id=self.accounts['profits'].id,
+                product_id=self.session.query(Product)
                 .filter_by(id=Product.EURO_CT_ID)
-                .one(),
+                .one().id,
                 amount=200
             )
         self.assert_balancesheet_invariants(self.balancesheet)
@@ -232,11 +231,9 @@ class ApiTest(test_util.DbTestCase):
             .balance,
             11
         )
-        # And receive payment from John Doe
-        with api.transaction_group(
-                text='Paymnet from John Doe',
-                session=self.session,
-                balancesheet=self.balancesheet,
+        # John Doe überweist Geld und bezahlt damit seine Rechnung
+        with self.balancesheet.transact_orm(
+                text='Payment from John Doe',
                 receiptdate=datetime.datetime.now().date()
                 ) as t:
             t.transaction(
@@ -273,11 +270,42 @@ class ApiTest(test_util.DbTestCase):
             .balance,
             -1800
         )
-        # BalanceAccounts have flipped balances. A negative value
-        # means there is money in the account (2€ in this case)
+
+        # BalanceAccounts haben umgedrehte Salden. Ein negativer
+        # Wert entspricht Guthaben (2€ in diesem Fall)
         n.eq_(
             self.accounts['bank']
             .cumulative_totals_and_balance[Product.EURO_CT_ID]
             .balance,
             -200
         )
+
+        # Alle ORM instancen aus der Session entfernen
+        # => self.balancesheet und self.accounts funktionieren nicht mehr!
+        self.session.expunge_all()
+
+        # letzte Buchung stornieren
+        last_transaction = self.session.query(Transaction) \
+            .order_by(sa.desc(Transaction.id)) \
+            .limit(1) \
+            .one()
+        # Bilanz wieder holen
+        self.balancesheet = last_transaction.balancesheet
+
+        with self.balancesheet.transact_orm(
+                text='Cancellation',
+                receiptdate=datetime.datetime.now().date()
+                ) as t:
+            t.cancel_transaction(last_transaction, 'ooops')
+
+        n.eq_(
+            # self.accounts['bank'] wurde aus der Session geworfen
+            # => wird nicht aktualisiert => neu aus db holen
+            self.session.query(Account).filter_by(
+                id=self.accounts['bank'].id
+            ).one()
+            .cumulative_totals_and_balance[Product.EURO_CT_ID]
+            .balance,
+            0
+        )
+        self.assert_balancesheet_invariants(self.balancesheet)
