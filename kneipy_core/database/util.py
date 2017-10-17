@@ -9,6 +9,7 @@ TotalsAndBalance = collections.namedtuple(
     'product_name total_credit total_debit balance'.split()
 )
 
+
 def add_totals_and_balance(a, b):
     assert a.product_name == b.product_name
     return TotalsAndBalance(
@@ -17,6 +18,7 @@ def add_totals_and_balance(a, b):
         total_credit=a.total_credit + b.total_credit,
         balance=a.balance + b.balance
     )
+
 
 class TotalsAndBalancesPerProductType(sa.types.TypeDecorator):
     impl = sa.types.JSON

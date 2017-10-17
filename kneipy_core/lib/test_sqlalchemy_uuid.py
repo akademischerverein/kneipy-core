@@ -5,6 +5,7 @@ from sqlalchemy.dialects.postgresql import UUID
 import uuid
 from sqlalchemy.types import CHAR
 
+
 class SQLAlchemyUUIDTest(TestCase):
     def test_postgresql(self):
         guid = GUID()
