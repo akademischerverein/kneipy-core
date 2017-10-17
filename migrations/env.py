@@ -1,9 +1,9 @@
 from __future__ import with_statement
 import os
 from alembic import context
-from sqlalchemy import engine_from_config, pool
 from logging.config import fileConfig
 from kneipy_core import database
+import getpass
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -54,7 +54,13 @@ def run_migrations_online():
     """
     connectable = config.attributes.get('connectable')
     if not connectable:
-        database.connect(os.environ['DATABASE_URI'])
+        database.connect(os.environ.get(
+            'DATABASE_URI',
+            'postgresql://{}@localhost/kneipy-dev'.format(
+                getpass.getuser()
+
+            )
+        ))
         connectable = database.engine
 
     with connectable.connect() as connection:
@@ -65,6 +71,7 @@ def run_migrations_online():
 
         with context.begin_transaction():
             context.run_migrations()
+
 
 if context.is_offline_mode():
     run_migrations_offline()
