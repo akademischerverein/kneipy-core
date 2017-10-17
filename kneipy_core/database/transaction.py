@@ -1,6 +1,8 @@
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 
+from kneipy_core.lib.sqlalchemy_uuid import GUID
+
 from .base import Base
 
 
@@ -76,6 +78,22 @@ class Transaction(Base):
             'credit_account_id',
             name='uq_transaction_debit'
         ),
+        sa.ForeignKeyConstraint([
+                'credit_account_id', 'balancesheet_id'
+            ], [
+                'account.id', 'account.balancesheet_id'
+            ],
+            onupdate="RESTRICT", ondelete="RESTRICT",
+            name='credit_account'
+        ),
+        sa.ForeignKeyConstraint([
+                'debit_account_id', 'balancesheet_id'
+            ], [
+                'account.id', 'account.balancesheet_id'
+            ],
+            onupdate="RESTRICT", ondelete="RESTRICT",
+            name='debit_account'
+        ),
     )
     balancesheet_id = sa.Column(
         sa.ForeignKey(
@@ -102,16 +120,24 @@ class Transaction(Base):
     )
 
     credit_account_id = sa.Column(
-        sa.ForeignKey('account.id', onupdate="RESTRICT", ondelete="RESTRICT"),
+        GUID,
         nullable=False
     )
-    credit_account = relationship('Account', foreign_keys=[credit_account_id])
+    credit_account = relationship(
+        'Account',
+        viewonly=True,
+        foreign_keys=[credit_account_id, balancesheet_id]
+    )
 
     debit_account_id = sa.Column(
-        sa.ForeignKey('account.id', onupdate="RESTRICT", ondelete="RESTRICT"),
+        GUID,
         nullable=False
     )
-    debit_account = relationship('Account', foreign_keys=[debit_account_id])
+    debit_account = relationship(
+        'Account',
+        viewonly=True,
+        foreign_keys=[debit_account_id, balancesheet_id]
+    )
 
     product_id = sa.Column(
         sa.ForeignKey('product.id', onupdate="RESTRICT", ondelete="RESTRICT"),

@@ -228,6 +228,9 @@ class Account(Base, ExternalRefMixin):
             sa.UniqueConstraint(
                 'type',
                 'id',
+            ),
+            sa.UniqueConstraint(
+                'balancesheet_id', 'id'
             )
         ])
 
