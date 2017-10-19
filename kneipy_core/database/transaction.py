@@ -149,7 +149,11 @@ class Transaction(Base):
 
     text = sa.Column(sa.Unicode, nullable=False)
 
-    cancellation_for_transaction_id = sa.Column(sa.BigInteger, nullable=True)
+    cancellation_for_transaction_id = sa.Column(
+        sa.BigInteger,
+        nullable=True,
+        unique=True
+    )
     cancellation_for_transaction = relationship(
         'Transaction',
         back_populates='cancelled_by',
