@@ -15,6 +15,14 @@ class TransactionInterfaceCore():
 
     def transaction(self, credit_account_id, debit_account_id, product_id,
                     amount, text):
+        if amount <= 0:
+            raise ValueError(
+                'Transaction {} => {} "{}" {} x {} has a non-positive amount'
+                .format(
+                    credit_account_id, debit_account_id, text,
+                    amount, product_id
+                )
+            )
         assert amount > 0
         self.transactions.append({
             'balancesheet_id': self.balancesheet_id,
@@ -23,7 +31,8 @@ class TransactionInterfaceCore():
             'debit_account_id': debit_account_id,
             'product_id': product_id,
             'amount': amount,
-            'text': text
+            'text': text,
+            'cancellation_for_transaction_id': None
         })
 
     def cancel_transaction(self, transaction_id,
@@ -57,7 +66,10 @@ class TransactionInterfaceCore():
                 debit_account_id=sa.bindparam('debit_account_id'),
                 product_id=sa.bindparam('product_id'),
                 amount=sa.bindparam('amount'),
-                text=sa.bindparam('text')
+                text=sa.bindparam('text'),
+                cancellation_for_transaction_id=sa.bindparam(
+                    'cancellation_for_transaction_id'
+                )
             )
         self.session.execute(query, self.transactions)
         accounts = set(
