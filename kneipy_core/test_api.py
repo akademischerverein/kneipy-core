@@ -5,9 +5,7 @@ import sqlalchemy as sa
 
 from . import api, test_util
 from .database import Person, Account, Product, \
-    AccountPerson, AccountResult, \
-    AccountProfits, AccountBalances, \
-    AccountExpenses, BalanceSheet, Transaction
+    Transaction, AccountTypes, BalanceSheet
 
 
 class ApiTest(test_util.DbTestCase):
@@ -15,40 +13,48 @@ class ApiTest(test_util.DbTestCase):
         self.balancesheet = BalanceSheet(name='simple test')
 
         self.accounts = {
-            'results': AccountResult(
+            'results': Account(
+                type=AccountTypes.PreviousResults,
                 balancesheet=self.balancesheet,
                 name='Operational Results'
             ),
-            'balances': AccountBalances(
+            'balances': Account(
+                type=AccountTypes.Capital,
                 balancesheet=self.balancesheet,
                 name='Balances'
             ),
-            'johndoe': AccountPerson(
+            'johndoe': Account(
+                type=AccountTypes.Person,
                 balancesheet=self.balancesheet,
                 person=Person(name='John Doe')
             ),
-            'supplier': AccountPerson(
+            'supplier': Account(
+                type=AccountTypes.Person,
                 balancesheet=self.balancesheet,
                 person=Person(name='Supplier Inc.')
             )
         }
         self.accounts.update({
-            'profits': AccountProfits(
+            'profits': Account(
+                type=AccountTypes.Profits,
                 balancesheet=self.balancesheet,
                 parent=self.accounts['results'],
                 name='Profits'
             ),
-            'expenses': AccountExpenses(
+            'expenses': Account(
+                type=AccountTypes.Profits,
                 balancesheet=self.balancesheet,
                 parent=self.accounts['results'],
                 name='Expenses'
             ),
-            'bank': AccountBalances(
+            'bank': Account(
+                type=AccountTypes.Financial,
                 balancesheet=self.balancesheet,
                 parent=self.accounts['balances'],
                 name='Bank Account'
             ),
-            'store': AccountBalances(
+            'store': Account(
+                type=AccountTypes.Capital,
                 balancesheet=self.balancesheet,
                 parent=self.accounts['balances'],
                 name='Inventory of store'
@@ -87,20 +93,26 @@ class ApiTest(test_util.DbTestCase):
 
     def test_eagerload(self):
         self.create_simple_balance_sheet()
-        balances = self.session.query(AccountBalances) \
+        balances = self.session.query(Account) \
             .options(
                 sa.orm.undefer('totals_and_balance')
             ) \
-            .filter_by(name='Balances').one()
+            .filter_by(
+                type=AccountTypes.Capital,
+                name='Balances') \
+            .one()
         n.eq_(balances, self.accounts['balances'])
         n.eq_(balances.cumulative_totals_and_balance
               [Product.EURO_CT_ID].balance, 0)
 
-        profits = self.session.query(AccountProfits) \
+        profits = self.session.query(Account) \
             .options(
                 sa.orm.selectinload('children')
             ) \
-            .filter_by(name='Profits').one()
+            .filter_by(
+                name='Profits',
+                type=AccountTypes.Profits) \
+            .one()
         n.eq_(profits, self.accounts['profits'])
         n.eq_(profits.cumulative_totals_and_balance
               [Product.EURO_CT_ID].balance, 0)

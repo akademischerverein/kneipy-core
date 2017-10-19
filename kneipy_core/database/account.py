@@ -86,13 +86,30 @@ class AccountTypes(enum.Enum):
     # wie Account.type werden von alembic nicht bemerkt und entsprechend
     # funktioniert das automatische Generieren der Migration nicht.
     # => manuell schreiben
-    BalanceSheetOpening = 1
-    Temp = 10
-    Person = 20
-    Result = 30
-    Profits = 31
-    Expenses = 32
-    Balances = 40
+    BalanceSheetOpening = "Saldovorträge"
+
+    Temp = "temporäre Konten"
+    Financial = "Finanzkonto"
+    Capital = "Kapital"
+    PreviousResults = "Vorjahresergebnisse"
+
+    Profits = "Einnahmen"
+    Expenses = "Ausgaben"
+
+    FromSales = \
+        "Forderungen aus Lieferungen und Leistungen / " + \
+        "Verbindlichkeiten aus Lieferungen und Leistungen"
+    Transit = "Wechselforderungen / Wechselverbindlichkeiten"
+    ConnectedEntities = \
+        "Forderungen gegen verbundene Unternehmen" + \
+        "Verbindlichkeiten gegen verbundene Unternehmen"
+    Others = \
+        "Forderungen und sonstige Vermögensgegenstände" + \
+        "sonstige Verbindlichkeiten"
+
+    Depreciation = "Abschreibungen"
+
+    Person = "Personenkonten"
 
 
 class Account(Base, ExternalRefMixin):
@@ -120,6 +137,18 @@ class Account(Base, ExternalRefMixin):
     parent_type = sa.Column(
         ENUM(AccountTypes), nullable=True
     )
+
+    name = sa.Column(
+        sa.Unicode(), nullable=True
+    )
+    person_id = sa.Column(
+        sa.ForeignKey(
+            'person.id',
+            onupdate="RESTRICT", ondelete="RESTRICT",
+        ),
+        nullable=True,
+    )
+    person = relationship('Person', backref="accounts")
 
     parent = relationship(
         'Account', primaryjoin=(sa.and_(parent_id == id, parent_type == type)),
@@ -181,14 +210,6 @@ class Account(Base, ExternalRefMixin):
                     )
         return res
 
-    __mapper_args__ = {
-        "polymorphic_on": type,
-        "polymorphic_identity": "impossible",
-        "with_polymorphic": "*",  # Spalten aller Kind-Klassen ebenfalls
-                                  # laden
-
-    }
-
     # NOT NULL / IS NULL prüfen abhängig von der type Spalte
     #
     # ACHTUNG!
@@ -201,25 +222,20 @@ class Account(Base, ExternalRefMixin):
     def __table_args__(self):
         return tuple(ExternalRefMixin.table_args() + [
             sa.CheckConstraint("""
-        (type = 'Temp'     AND person_id IS NULL     AND name IS NULL    ) OR
-        (type = 'Person'   AND person_id IS NOT NULL AND name IS NULL    ) OR
-        (type IN ('Balances', 'Result', 'Profits', 'Expenses') AND
-            person_id IS NULL AND name IS NOT NULL
-        )
+                (type = 'Person' AND person_id IS NOT NULL AND name IS NULL) OR
+                (type = 'Temp'   AND person_id IS NULL     AND name IS NULL) OR
+                (type NOT IN ('Person', 'Temp') AND
+                    person_id IS NULL AND name IS NOT NULL
+                )
             """, name='type_based_null_check'),
             sa.CheckConstraint("""
-            (
-                (type IN (
-                    'Person', 'Result',
-                    'Balances', 'Temp',
-                    'BalanceSheetOpening')
-                ) AND
-                (parent_type IS NULL)
-            ) OR (
-                type = parent_type AND type IS NOT NULL
-            ) OR (
-                type IN ('Profits', 'Expenses') AND parent_type = 'Result'
-            )
+                (
+                    type = parent_type AND type IS NOT NULL
+                ) OR (
+                    type NOT IN ('Profits', 'Expenses') AND parent_type IS NULL
+                ) OR (
+                    type IN ('Profits', 'Expenses') AND parent_type = 'Capital'
+                )
             """, name='parent_type_check'),
             sa.ForeignKeyConstraint(
                 [
@@ -237,48 +253,6 @@ class Account(Base, ExternalRefMixin):
             ),
             sa.UniqueConstraint(
                 'balancesheet_id', 'id'
-            )
+            ),
         ])
 
-
-class AccountTemp(Account):
-    __mapper_args__ = {'polymorphic_identity': AccountTypes.Temp}
-
-
-class AccountPerson(Account):
-    __mapper_args__ = {'polymorphic_identity': AccountTypes.Person}
-
-    person_id = sa.Column(
-        sa.ForeignKey('person.id', onupdate="RESTRICT", ondelete="RESTRICT")
-    )
-    person = relationship('Person', backref="konten")
-
-
-class AccountNameMixin():
-    @declared_attr
-    def name(self):
-        "name column, if not present already."
-        return Account.__table__.c.get(
-            'name',
-            sa.Column(sa.Unicode, nullable=True)
-        )
-
-
-class AccountBalances(Account, AccountNameMixin):
-    __mapper_args__ = {'polymorphic_identity': AccountTypes.Balances}
-    # name Spalte aus AccountNameMixin
-
-
-class AccountResult(Account, AccountNameMixin):
-    __mapper_args__ = {'polymorphic_identity': AccountTypes.Result}
-    # name Spalte aus AccountNameMixin
-
-
-class AccountProfits(Account, AccountNameMixin):
-    __mapper_args__ = {'polymorphic_identity': AccountTypes.Profits}
-    # name Spalte aus AccountNameMixin
-
-
-class AccountExpenses(Account, AccountNameMixin):
-    __mapper_args__ = {'polymorphic_identity': AccountTypes.Expenses}
-    # name Spalte aus AccountNameMixin

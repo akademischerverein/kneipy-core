@@ -4,10 +4,7 @@ from sqlalchemy.orm.scoping import scoped_session
 
 from .base import Base
 from .person import Person
-from .account import Account, AccountTemp, \
-    AccountPerson, AccountResult, \
-    AccountProfits, AccountBalances, \
-    AccountExpenses
+from .account import Account, AccountTypes
 from .product import Product
 from .transaction import Transaction
 from .balancesheet import BalanceSheet
@@ -31,10 +28,8 @@ def connect(uri, **kw):
 
 __all__ = [
     'Base', 'Session', 'engine', 'connect',
-    'Person', 'Account', 'AccountTemp',
-    'AccountPerson', 'AccountResult',
-    'AccountProfits', 'AccountBalances',
-    'AccountExpenses', 'AccountBalanceSheet',
+    'Person', 'Account', 'AccountTypes',
+    'AccountBalanceSheet',
     'Product', 'BalanceSheet',
     'Transaction', 'TransactionGroup'
 ]
