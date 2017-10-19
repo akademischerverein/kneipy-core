@@ -321,3 +321,36 @@ class ApiTest(test_util.DbTestCase):
             0
         )
         self.assert_balancesheet_invariants(self.balancesheet)
+
+    @n.raises(ValueError)
+    def test_invalid_transaction_negative_amount(self):
+        self.create_simple_balance_sheet()
+        with self.balancesheet.transact_orm(
+                text='test',
+                receiptdate=datetime.datetime.now().date()) as t:
+            t.transaction(
+                text='invalid',
+                credit=self.accounts['bank'],
+                debit=self.accounts['johndoe'],
+                product=self.session.query(Product)
+                .filter_by(id=Product.EURO_CT_ID)
+                .one(),
+                amount=-20
+            )
+
+    @n.raises(sa.exc.IntegrityError)
+    def test_invalid_transaction_same_accounts(self):
+        self.create_simple_balance_sheet()
+        with self.balancesheet.transact_orm(
+                text='test',
+                receiptdate=datetime.datetime.now().date()) as t:
+            t.transaction(
+                text='invalid',
+                credit=self.accounts['bank'],
+                debit=self.accounts['bank'],
+                product=self.session.query(Product)
+                .filter_by(id=Product.EURO_CT_ID)
+                .one(),
+                amount=20
+            )
+
