@@ -105,7 +105,13 @@ class Account(Base, ExternalRefMixin):
 
     type = sa.Column(ENUM(AccountTypes), nullable=False)
 
-    balancesheet_id = sa.Column(sa.ForeignKey('balancesheet.id'))
+    balancesheet_id = sa.Column(
+        sa.ForeignKey(
+            'balancesheet.id',
+            onupdate="RESTRICT", ondelete="RESTRICT",
+        ),
+        nullable=False
+    )
     balancesheet = relationship('BalanceSheet', back_populates='accounts')
 
     parent_id = sa.Column(
