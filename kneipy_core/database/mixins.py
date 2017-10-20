@@ -6,7 +6,7 @@ from sqlalchemy.dialects.postgresql import HSTORE
 class ExternalRefMixin():
     external_refs = sa.Column(
         MutableDict.as_mutable(
-            HSTORE(text_type='str')
+            HSTORE(text_type=sa.Text)
         ),
         nullable=True,
     )
