@@ -5,12 +5,16 @@ import sqlalchemy as sa
 
 from . import api, test_util
 from .database import Person, Account, Product, \
-    Transaction, AccountTypes, BalanceSheet
+    Transaction, AccountTypes, BalanceSheet, Company
 
 
 class ApiTest(test_util.DbTestCase):
     def create_simple_balance_sheet(self):
-        self.balancesheet = BalanceSheet(name='simple test')
+        self.company = Company(name='Test for fun')
+        self.balancesheet = BalanceSheet(
+            name='simple test',
+            company=self.company
+        )
 
         self.accounts = {
             'results': Account(

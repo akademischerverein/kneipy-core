@@ -6,7 +6,9 @@ import alembic
 import sqlalchemy as sa
 import alembic.config
 from alembic.migration import MigrationContext
+from alembic.runtime.environment import EnvironmentContext
 from alembic.autogenerate import compare_metadata
+from alembic.script import ScriptDirectory
 
 from . import database
 from .lib.sqlalchemy_session_scope import \
@@ -47,11 +49,17 @@ class DbTestCase(unittest.TestCase):
             }
         )
         alembic.command.upgrade(alembic_cfg, "head")
-
+        ec = EnvironmentContext(
+            alembic_cfg,
+            ScriptDirectory('migrations')
+        )
+        ec.configure(
+            connection=database.engine.connect(),
+            include_object=database.alembic_include_object
+        )
         # Weicht das Ergebnis der Migrationen von den
         # Modell-Definitionen ab?
-        mc = MigrationContext.configure(database.engine.connect())
-        comparison = compare_metadata(mc, database.Base.metadata)
+        comparison = compare_metadata(ec.get_context(), database.Base.metadata)
         if comparison:
             raise RuntimeError()
 

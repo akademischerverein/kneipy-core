@@ -66,7 +66,8 @@ def run_migrations_online():
     with connectable.connect() as connection:
         context.configure(
             connection=connection,
-            target_metadata=database.Base.metadata
+            target_metadata=database.Base.metadata,
+            include_object=database.alembic_include_object
         )
 
         with context.begin_transaction():

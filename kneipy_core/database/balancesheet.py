@@ -1,11 +1,14 @@
+from contextlib import contextmanager
+
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
+from sqlalchemy.dialects.postgresql import DATERANGE, \
+    ExcludeConstraint
 
 from kneipy_core.lib.sqlalchemy_uuid import GUID
 
 from .base import Base
 from .util import add_totals_and_balance
-from contextlib import contextmanager
 
 
 class BalanceSheet(Base):
@@ -20,6 +23,17 @@ class BalanceSheet(Base):
         sa.UnicodeText,
         nullable=False
     )
+
+    company_id = sa.Column(
+        sa.ForeignKey(
+            'company.id',
+            onupdate="RESTRICT", ondelete="RESTRICT"
+        ),
+        nullable=False,
+    )
+    company = relationship('Company', backref='balancesheets')
+
+    daterange = sa.Column(DATERANGE())
 
     transaction_id_seq = sa.Column(
         sa.BigInteger,
@@ -43,6 +57,13 @@ class BalanceSheet(Base):
 
     accounts = relationship(
         'Account', back_populates='balancesheet'
+    )
+
+    __table_args__ = (
+        ExcludeConstraint(
+            ('company_id', '='), ('daterange', '&&'),
+            name='ex_balancesheet_company_id_daterange'
+        ),
     )
 
     @property
@@ -96,5 +117,3 @@ class BalanceSheet(Base):
                 text=text, receiptdate=receiptdate, receipt=receipt
                 ) as transaction_group:
             yield transaction_group
-
-
