@@ -49,7 +49,7 @@ test with prebuild image:
   <<: *run-tests
   <<: *using-pg9-6
   stage: quick test
-  image: $CI_REGISTRY/jens/docker-images:av_intranet
+  image: local-docker-images/av_intranet
 
 test-jessie-pg9.5:
   <<: *install-deps-jessie
