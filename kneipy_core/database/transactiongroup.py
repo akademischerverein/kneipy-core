@@ -28,7 +28,7 @@ class TransactionGroup(Base, ExternalRefMixin):
     )
     receipt = sa.Column(
         sa.Unicode,
-        nullable=True,
+        nullable=False,
         index=True
     )
     bookingtime = sa.Column(
