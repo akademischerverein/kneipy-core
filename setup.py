@@ -32,10 +32,7 @@ setup(
     packages=find_packages(),
     data_files=[
         ('lib/kneipy/core-migrations', [
-            'migrations/env.py',
-            'migrations/script.py.mako',
-            'migrations/README',
-            'alembic.ini'
+            'alembic.ini',
         ] + glob.glob('migrations/versions/*.py'))
     ],
     include_package_data=True,
