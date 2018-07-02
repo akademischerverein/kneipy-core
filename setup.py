@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 
 import os
-from setuptools import setup, find_packages
+import glob
+from distutils.core import setup
+
+from setuptools import find_packages
 
 here = os.path.abspath(os.path.dirname(__file__))
 
@@ -19,7 +22,7 @@ REQUIREMENTS = [
 
 setup(
     name='kneipy-core',
-    version='0.0.0pre-alpha',
+    version='0.0.0-dev0',
     description='',
     long_description=README,
     author='Jens Gutermuth',
@@ -27,6 +30,16 @@ setup(
     install_requires=REQUIREMENTS,
     keywords=[],
     packages=find_packages(),
+    data_files=[
+        ('lib/kneipy/core-migrations', [
+            'migrations/env.py',
+            'migrations/script.py.mako',
+            'migrations/README',
+            'alembic.ini',
+            *glob.glob('migrations/versions/*.py')
+        ])
+    ],
+    include_package_data=True,
     classifiers=[
     ],
     entry_points={
