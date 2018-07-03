@@ -76,10 +76,11 @@ LexwareJournalLine = collections.namedtuple(
 
 
 class LexwareImporter():
-    def __init__(self, name):
+    def __init__(self, name, company):
         self.session = database.Session()
         self.balancesheet = database.BalanceSheet(
-            name=name
+            name=name,
+            company=company
         )
         self.session.add(self.balancesheet)
         self.session.flush()
@@ -361,11 +362,12 @@ if __name__ == "__main__":
     with session_scope(database.Session()) as s:
         # seed database with essential data
         s.execute(database.Product.insert_euro_cents())
+    company = database.Company(name='AV Buchhaltung')
     for fn in sorted(os.listdir(sys.argv[1])):
         if not fn.startswith('jour'):
             continue
         print('===', fn)
-        importer = LexwareImporter(fn)
+        importer = LexwareImporter(fn, company)
         importer.import_accounts(
             open(
                 os.path.join(sys.argv[1], 'KTPL_BP.txt'),
