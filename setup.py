@@ -2,9 +2,14 @@
 
 import os
 import glob
-from distutils.core import setup
 
 from setuptools import find_packages
+
+try:
+    from distutils.core import setup
+except ImportError:
+    from setuptools import setup
+
 
 here = os.path.abspath(os.path.dirname(__file__))
 
