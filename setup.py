@@ -13,7 +13,7 @@ with open(os.path.join(here, 'README.md')) as f:
 
 REQUIREMENTS = [
     'SQLAlchemy==1.2.0b2',
-    'psycopg2>=2.7.3.1',
+    'psycopg2-binary>=2.7.3.1',
     'alembic>=0.9.5',
     # Unittest-Framework
     'nose',
