@@ -203,7 +203,8 @@ class ApiTest(test_util.DbTestCase):
         # Lass uns außerdem mal das ORM etwas vermeiden
         with self.balancesheet.transact_core(
                 text='Accquire stock',
-                receiptdate=datetime.datetime.now().date()
+                receiptdate=datetime.datetime.now().date(),
+                receipt='IN-001'
                 ) as t:
             t.transaction(
                 text='1 bottle of beer',
