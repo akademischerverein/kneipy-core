@@ -331,6 +331,9 @@ class LexwareImporter():
             else:
                 continue
 
+            if parsed_line.nr in ['04031', '06330', '06350', '06001', '05001', '05051', '05101']:
+                parsed_line = parsed_line._replace(name=parsed_line.name + ' ' + parsed_line.nr)
+
             self.accounts[int(parsed_line.nr)] = database.Account(
                 external_refs={
                     'lexware': str(parsed_line.nr)
