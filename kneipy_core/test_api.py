@@ -134,7 +134,8 @@ class ApiTest(test_util.DbTestCase):
         # Erstmal etwas Inventar einkaufen
         with self.balancesheet.transact_orm(
                 text='Accquire stock',
-                receiptdate=datetime.datetime.now().date()
+                receiptdate=datetime.datetime.now().date(),
+                receipt='BUY-001'
                 ) as t:
             t.transaction(
                 text='1 case of beer (20 bottles)',
@@ -250,7 +251,8 @@ class ApiTest(test_util.DbTestCase):
         # John Doe überweist Geld und bezahlt damit seine Rechnung
         with self.balancesheet.transact_orm(
                 text='Payment from John Doe',
-                receiptdate=datetime.datetime.now().date()
+                receiptdate=datetime.datetime.now().date(),
+                receipt='SELL-001'
                 ) as t:
             t.transaction(
                 text='payment',
@@ -310,7 +312,8 @@ class ApiTest(test_util.DbTestCase):
 
         with self.balancesheet.transact_orm(
                 text='Cancellation',
-                receiptdate=datetime.datetime.now().date()
+                receiptdate=datetime.datetime.now().date(),
+                receipt='CANCEL-001'
                 ) as t:
             t.cancel_transaction(last_transaction, 'ooops')
 
@@ -331,7 +334,8 @@ class ApiTest(test_util.DbTestCase):
         self.create_simple_balance_sheet()
         with self.balancesheet.transact_orm(
                 text='test',
-                receiptdate=datetime.datetime.now().date()) as t:
+                receiptdate=datetime.datetime.now().date(),
+                receipt='TEST-001') as t:
             t.transaction(
                 text='invalid',
                 credit=self.accounts['bank'],
@@ -347,7 +351,8 @@ class ApiTest(test_util.DbTestCase):
         self.create_simple_balance_sheet()
         with self.balancesheet.transact_orm(
                 text='test',
-                receiptdate=datetime.datetime.now().date()) as t:
+                receiptdate=datetime.datetime.now().date(),
+                receipt='TEST-002') as t:
             t.transaction(
                 text='invalid',
                 credit=self.accounts['bank'],
