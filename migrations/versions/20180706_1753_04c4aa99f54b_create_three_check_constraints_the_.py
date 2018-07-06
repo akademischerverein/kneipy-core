@@ -1,4 +1,4 @@
-"""create two check constraints the initial migration failed to create
+"""create three check constraints the initial migration failed to create
 
 Revision ID: 04c4aa99f54b
 Revises: b8acb5119512
@@ -52,6 +52,29 @@ def upgrade():
             (array_length(akeys(external_refs), 1) > 0)
             """
         )
+    if not constraint_exists('ck_account_external_refs_null_or_used'):
+        op.create_check_constraint(
+            op.f('ck_account_external_refs_null_or_used'),
+            'account',
+            """
+            (external_refs IS NULL) OR
+            (array_length(akeys(external_refs), 1) > 0)
+            """
+        )
+    if not constraint_exists('ck_account_parent_type_check'):
+        op.create_check_constraint(
+            op.f('ck_account_parent_type_check'),
+            'account',
+            """
+            (
+                type = parent_type AND type IS NOT NULL
+            ) OR (
+                type NOT IN ('Profits', 'Expenses') AND parent_type IS NULL
+            ) OR (
+                type IN ('Profits', 'Expenses') AND parent_type = 'Capital'
+            )
+            """
+        )
 
 
 def downgrade():
@@ -61,5 +84,9 @@ def downgrade():
     )
     op.drop_constraint(
         'ck_account_external_refs_null_or_used',
+        'account'
+    )
+    op.drop_constraint(
+        'ck_account_parent_type_check',
         'account'
     )
