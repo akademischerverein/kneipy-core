@@ -17,7 +17,28 @@ branch_labels = None
 depends_on = None
 
 
+def constraint_exists(name):
+    rows = op.get_bind().execute(sa.sql.text("""
+    SELECT * FROM information_schema.check_constraints WHERE
+    constraint_schema = 'public' AND constraint_name = :name
+    """), {"name": name}).fetchall()
+    return len(rows) > 0
+
+
 def change_enum(table, column_names, name, new_values):
+    # This constraint is supposed to be created in
+    # 20171016_0246_d617e45b3bef_initial.py. However it - for some
+    # reason - is not present in the database afterwards.
+    # If that bug (?) is ever fixed, this migration will break,
+    # because this constraint uses the account_type enum.
+    # Let's just drop it, it get's created correctly again in
+    # 20180706_1753_04c4aa99f54b_create_two_check_constraints_the_.py
+    if constraint_exists('ck_account_type_based_null_check'):
+        op.drop_constraint(
+            'ck_account_type_based_null_check',
+            'account'
+        )
+
     op.execute('''
         ALTER TYPE {name} RENAME TO {name}_old;
         CREATE TYPE {name} AS ENUM (
