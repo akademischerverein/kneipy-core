@@ -228,15 +228,7 @@ class Account(Base, ExternalRefMixin):
                     person_id IS NULL AND name IS NOT NULL
                 )
             """, name='type_based_null_check'),
-            sa.CheckConstraint("""
-                (
-                    type = parent_type AND type IS NOT NULL
-                ) OR (
-                    type NOT IN ('Profits', 'Expenses') AND parent_type IS NULL
-                ) OR (
-                    type IN ('Profits', 'Expenses') AND parent_type = 'Capital'
-                )
-            """, name='parent_type_check'),
+            # FIXME: Check the type of the parent account makes sense
             sa.ForeignKeyConstraint(
                 [
                     'parent_id',
