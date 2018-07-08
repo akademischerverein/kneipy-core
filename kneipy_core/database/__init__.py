@@ -4,10 +4,8 @@ from sqlalchemy.orm.scoping import scoped_session
 
 from .base import Base
 from .person import Person
-from .account import Account, AccountTemp, \
-    AccountPerson, AccountResult, \
-    AccountProfits, AccountBalances, \
-    AccountExpenses
+from .account import Account, AccountTypes
+from .company import Company
 from .product import Product
 from .transaction import Transaction
 from .balancesheet import BalanceSheet
@@ -29,12 +27,18 @@ def connect(uri, **kw):
     Session = scoped_session(sessionmaker(bind=engine))
 
 
+def alembic_include_object(o, name, type_, reflected, compare_to):
+    # Dieser Index gehört zu einem Exclusion-Constraint, den alembic
+    # nicht korrekt erkennt und daher entfernen will. => ignorieren
+    if name == 'ex_balancesheet_company_id_daterange':
+        return False
+    return True
+
+
 __all__ = [
     'Base', 'Session', 'engine', 'connect',
-    'Person', 'Account', 'AccountTemp',
-    'AccountPerson', 'AccountResult',
-    'AccountProfits', 'AccountBalances',
-    'AccountExpenses', 'AccountBalanceSheet',
-    'Product',
+    'Person', 'Account', 'AccountTypes',
+    'AccountBalanceSheet',
+    'Product', 'BalanceSheet',
     'Transaction', 'TransactionGroup'
 ]

@@ -31,9 +31,15 @@ stages:
 
 .run-tests: &run-tests
   script:
-  - PGUSER=postgres PGDATABASE=postgres PGHOST=postgres ./.setup-database.sh
+  - mkdir -p $XDG_CACHE_HOME
   - python3 -m virtualenv --python=/usr/bin/python3 .venv
+  - .venv/bin/pip install -U pip wheel setuptools
   - .venv/bin/pip install -e .
+  - PGUSER=postgres PGDATABASE=postgres PGHOST=postgres ./.setup-database.sh
+  - DATABASE_URI=$DATABASE_URI_TESTS .venv/bin/alembic upgrade head
+  - DATABASE_URI=$DATABASE_URI_TESTS .venv/bin/alembic downgrade base
+  - DATABASE_URI=$DATABASE_URI_TESTS .venv/bin/alembic upgrade head
+  - DATABASE_URI=$DATABASE_URI_TESTS .venv/bin/alembic downgrade base
   - .venv/bin/nosetests --with-coverage --cover-package=kneipy_core --cover-branches --cover-html -dv
   artifacts:
     when: on_success
@@ -43,7 +49,11 @@ stages:
     expire_in: 2 weeks
   variables:
     DATABASE_URI_TESTS: postgresql://kneipy-dev:kneipy-dev@postgres/kneipy-tests
-
+    XDG_CACHE_HOME: ".cache"
+  cache:
+    key: "$CI_JOB_NAME"
+    paths:
+      - .cache
 
 test with prebuild image:
   <<: *run-tests

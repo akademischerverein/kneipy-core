@@ -1,6 +1,8 @@
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 
+from kneipy_core.lib.sqlalchemy_uuid import GUID
+
 from .base import Base
 
 
@@ -16,11 +18,11 @@ class Transaction(Base):
         sa.CheckConstraint('''
             (amount > 0 AND cancellation_for_transaction_id IS NULL) OR
             (amount < 0 AND cancellation_for_transaction_id IS NOT NULL)
-        ''', name='transaction_amount_check'),
+        ''', name='amount'),
         # transactions between the same accounts don't make any sense
         sa.CheckConstraint(
             'credit_account_id != debit_account_id',
-            name='transaction_not_same_account_check'
+            name='not_same_account'
         ),
 
         sa.ForeignKeyConstraint(
@@ -31,7 +33,6 @@ class Transaction(Base):
                 'transaction_group.balancesheet_id',
                 'transaction_group.id',
             ],
-            name='transaction_transaction_group_fk',
             onupdate="RESTRICT", ondelete="RESTRICT",
         ),
 
@@ -53,7 +54,7 @@ class Transaction(Base):
                 'transaction.debit_account_id'
             ],
             onupdate="RESTRICT", ondelete="RESTRICT",
-            name='transaction_storno_fk'
+            name='storno'
         ),
         # Buchungen eines Accounts zu finden kommt häufiger vor
         # id ist ebenfalls im Index um schnell danach sortieren zu können
@@ -63,7 +64,7 @@ class Transaction(Base):
             'credit_account_id',
             'product_id',
             'id',
-            name='transaction_credit_unique'
+            name='uq_transaction_credit'
         ),
         # Die zusätzlichen Felder hinter id sind für den Foreign Key
         # Constaint oben, der Stornos korrekt erzwingt, leider nötig,
@@ -75,7 +76,23 @@ class Transaction(Base):
             'product_id',
             'id',
             'credit_account_id',
-            name='transaction_dedit_unique'
+            name='uq_transaction_debit'
+        ),
+        sa.ForeignKeyConstraint([
+                'credit_account_id', 'balancesheet_id'
+            ], [
+                'account.id', 'account.balancesheet_id'
+            ],
+            onupdate="RESTRICT", ondelete="RESTRICT",
+            name='credit_account'
+        ),
+        sa.ForeignKeyConstraint([
+                'debit_account_id', 'balancesheet_id'
+            ], [
+                'account.id', 'account.balancesheet_id'
+            ],
+            onupdate="RESTRICT", ondelete="RESTRICT",
+            name='debit_account'
         ),
     )
     balancesheet_id = sa.Column(
@@ -103,16 +120,24 @@ class Transaction(Base):
     )
 
     credit_account_id = sa.Column(
-        sa.ForeignKey('account.id', onupdate="RESTRICT", ondelete="RESTRICT"),
+        GUID,
         nullable=False
     )
-    credit_account = relationship('Account', foreign_keys=[credit_account_id])
+    credit_account = relationship(
+        'Account',
+        viewonly=True,
+        foreign_keys=[credit_account_id, balancesheet_id]
+    )
 
     debit_account_id = sa.Column(
-        sa.ForeignKey('account.id', onupdate="RESTRICT", ondelete="RESTRICT"),
+        GUID,
         nullable=False
     )
-    debit_account = relationship('Account', foreign_keys=[debit_account_id])
+    debit_account = relationship(
+        'Account',
+        viewonly=True,
+        foreign_keys=[debit_account_id, balancesheet_id]
+    )
 
     product_id = sa.Column(
         sa.ForeignKey('product.id', onupdate="RESTRICT", ondelete="RESTRICT"),
@@ -124,7 +149,11 @@ class Transaction(Base):
 
     text = sa.Column(sa.Unicode, nullable=False)
 
-    cancellation_for_transaction_id = sa.Column(sa.BigInteger, nullable=True)
+    cancellation_for_transaction_id = sa.Column(
+        sa.BigInteger,
+        nullable=True,
+        unique=True
+    )
     cancellation_for_transaction = relationship(
         'Transaction',
         back_populates='cancelled_by',

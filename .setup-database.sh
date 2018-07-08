@@ -12,6 +12,10 @@ psql postgres <<EOF
 
     \c kneipy-dev
     CREATE EXTENSION pgcrypto;
+    CREATE EXTENSION hstore;
+    CREATE EXTENSION btree_gist;
     \c kneipy-tests
     CREATE EXTENSION pgcrypto;
+    CREATE EXTENSION hstore;
+    CREATE EXTENSION btree_gist;
 EOF
