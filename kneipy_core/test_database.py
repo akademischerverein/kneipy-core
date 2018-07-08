@@ -1,13 +1,11 @@
-import datetime
-
 import nose.tools as n
 import sqlalchemy as sa
 
-from . import api, test_util
+from . import test_util
 from .database import Base
 
 
-class ApiTest(test_util.DbTestCase):
+class DatabaseModelTest(test_util.DbTestCase):
     def test_check_constraints(self):
         rows = self.session.execute("""
         SELECT constraint_name FROM information_schema.check_constraints WHERE
