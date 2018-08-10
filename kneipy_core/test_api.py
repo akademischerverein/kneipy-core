@@ -4,7 +4,7 @@ import datetime
 import nose.tools as n
 import sqlalchemy as sa
 
-from . import api, test_util
+from . import test_util
 from .database import Person, Account, Company, \
     Product, Transaction, AccountTypes, \
     BalanceSheet
@@ -157,7 +157,7 @@ class ApiTest(test_util.DbTestCase):
                 product=self.products['water'],
                 amount=12
             )
-            # for - let's say - 20€
+            # for - let's say - 5,50€
             t.transaction(
                 text='payment',
                 credit=self.accounts['expenses'],
@@ -165,14 +165,14 @@ class ApiTest(test_util.DbTestCase):
                 product=self.session.query(Product)
                 .filter_by(id=Product.EURO_CT_ID)
                 .one(),
-                amount=2000
+                amount=decimal.Decimal('5.5')
             )
         self.assert_balancesheet_invariants(self.balancesheet)
         n.eq_(
             self.balancesheet
             .cumulative_totals_and_balance[Product.EURO_CT_ID]
             .total_debit,
-            2000
+            decimal.Decimal('5.5')
         )
         n.eq_(
             self.balancesheet
@@ -190,7 +190,7 @@ class ApiTest(test_util.DbTestCase):
             self.accounts['supplier']
             .cumulative_totals_and_balance[Product.EURO_CT_ID]
             .total_debit,
-            2000
+            decimal.Decimal('5.5')
         )
         n.eq_(
             self.accounts['supplier']
@@ -234,7 +234,7 @@ class ApiTest(test_util.DbTestCase):
                 product_id=self.session.query(Product)
                 .filter_by(id=Product.EURO_CT_ID)
                 .one().id,
-                amount=200
+                amount=decimal.Decimal('2.00')
             )
         self.assert_balancesheet_invariants(self.balancesheet)
         n.eq_(
@@ -268,7 +268,7 @@ class ApiTest(test_util.DbTestCase):
                 product=self.session.query(Product)
                 .filter_by(id=Product.EURO_CT_ID)
                 .one(),
-                amount=200
+                amount=decimal.Decimal('2.00')
             )
         self.assert_balancesheet_invariants(self.balancesheet)
         n.eq_(
@@ -293,7 +293,7 @@ class ApiTest(test_util.DbTestCase):
             self.accounts['results']
             .cumulative_totals_and_balance[Product.EURO_CT_ID]
             .balance,
-            -1800
+            decimal.Decimal('-3.5')
         )
 
         # BalanceAccounts haben umgedrehte Salden. Ein negativer
@@ -302,7 +302,7 @@ class ApiTest(test_util.DbTestCase):
             self.accounts['bank']
             .cumulative_totals_and_balance[Product.EURO_CT_ID]
             .balance,
-            -200
+            decimal.Decimal('-2')
         )
 
         # Alle ORM instancen aus der Session entfernen
@@ -350,7 +350,7 @@ class ApiTest(test_util.DbTestCase):
                 product=self.session.query(Product)
                 .filter_by(id=Product.EURO_CT_ID)
                 .one(),
-                amount=-20
+                amount=decimal.Decimal('-20')
             )
 
     @n.raises(sa.exc.IntegrityError)
@@ -367,5 +367,5 @@ class ApiTest(test_util.DbTestCase):
                 product=self.session.query(Product)
                 .filter_by(id=Product.EURO_CT_ID)
                 .one(),
-                amount=20
+                amount=decimal.Decimal('20')
             )
