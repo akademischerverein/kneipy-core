@@ -117,13 +117,16 @@ class LexwareImporter():
         if lexware_account_id not in self.accounts and \
                 lexware_account_id > 11000:
             # Personenkonto automatisch anlegen
+            person = database.Person(name=str(lexware_account_id))
             self.accounts[lexware_account_id] = database.Account(
                 external_refs={
                     'lexware': str(lexware_account_id)
                 },
                 balancesheet_id=self.balancesheet.id,
-                type=database.AccountTypes.Person
+                type=database.AccountTypes.Person,
+                person=person
             )
+            self.session.add(person)
             self.session.add(self.accounts[lexware_account_id])
             self.session.flush()
         return self.accounts[lexware_account_id].id
