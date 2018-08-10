@@ -1,4 +1,6 @@
 from . import api
+from .database import Account, AccountTypes, BalanceSheet, Company, Person, \
+    Product, Report, Transaction, TransactionGroup
 
 
 def setup_package():
