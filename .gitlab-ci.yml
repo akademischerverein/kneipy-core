@@ -1,5 +1,4 @@
 stages:
- - quick test
  - test
 
 .install-deps-jessie: &install-deps-jessie
@@ -54,12 +53,6 @@ stages:
     key: "$CI_JOB_NAME"
     paths:
       - .cache
-
-test with prebuild image:
-  <<: *run-tests
-  <<: *using-pg9-6
-  stage: quick test
-  image: docker.jensgutermuth.de/ci/debian:stretch-nodejs-python
 
 test-jessie-pg9.5:
   <<: *install-deps-jessie
