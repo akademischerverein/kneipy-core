@@ -13,10 +13,11 @@ from .util import TotalsAndBalancesPerProductType, \
     add_totals_and_balance
 from .mixins import ExternalRefMixin
 from .product import Product
-from .transaction import Transaction
+from .transaction import Transaction, SA_AMOUNT_TYPE
 
 
 def totals_and_balances_query(id_column):
+    d_zero = sa.cast(0, SA_AMOUNT_TYPE)
     return sa.select([
         sa.type_coerce(
             sa.func.coalesce(
@@ -31,14 +32,24 @@ def totals_and_balances_query(id_column):
         sa.select([
             Product.id.label('product_id'),
             sa.func.json_build_object(
-                sa.literal('product_name'), Product.name,
+                sa.literal('product_name'),
+                Product.name,
                 sa.literal('total_debit'),
-                sa.func.coalesce(sa.column('total_debit'), 0),
+                sa.cast(
+                    sa.func.coalesce(sa.column('total_debit'), d_zero),
+                    sa.Text
+                ),
                 sa.literal('total_credit'),
-                sa.func.coalesce(sa.column('total_credit'), 0),
+                sa.cast(
+                    sa.func.coalesce(sa.column('total_credit'), d_zero),
+                    sa.Text
+                ),
                 sa.literal('balance'),
-                sa.func.coalesce(sa.column('total_debit'), 0) -
-                sa.func.coalesce(sa.column('total_credit'), 0),
+                sa.cast(
+                    sa.func.coalesce(sa.column('total_debit'), d_zero) -
+                    sa.func.coalesce(sa.column('total_credit'), d_zero),
+                    sa.Text
+                )
             ).label('data')
         ]).select_from(
             sa.outerjoin(

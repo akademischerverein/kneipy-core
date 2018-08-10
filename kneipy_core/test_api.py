@@ -1,11 +1,13 @@
+import decimal
 import datetime
 
 import nose.tools as n
 import sqlalchemy as sa
 
 from . import api, test_util
-from .database import Person, Account, Product, \
-    Transaction, AccountTypes, BalanceSheet, Company
+from .database import Person, Account, Company, \
+    Product, Transaction, AccountTypes, \
+    BalanceSheet
 
 
 class ApiTest(test_util.DbTestCase):
@@ -120,6 +122,10 @@ class ApiTest(test_util.DbTestCase):
         n.eq_(profits, self.accounts['profits'])
         n.eq_(profits.cumulative_totals_and_balance
               [Product.EURO_CT_ID].balance, 0)
+        n.ok_(isinstance(
+            profits.cumulative_totals_and_balance[Product.EURO_CT_ID].balance,
+            decimal.Decimal
+        ))
 
     def assert_balancesheet_invariants(self, balancesheet):
         tabs = balancesheet.cumulative_totals_and_balance
@@ -363,4 +369,3 @@ class ApiTest(test_util.DbTestCase):
                 .one(),
                 amount=20
             )
-

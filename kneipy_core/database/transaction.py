@@ -5,6 +5,8 @@ from kneipy_core.lib.sqlalchemy_uuid import GUID
 
 from .base import Base
 
+SA_AMOUNT_TYPE = sa.Numeric(20, 5)
+
 
 class Transaction(Base):
     __tablename__ = "transaction"
@@ -145,7 +147,7 @@ class Transaction(Base):
     )
     product = relationship('Product')
 
-    amount = sa.Column(sa.BigInteger, nullable=False)
+    amount = sa.Column(SA_AMOUNT_TYPE, nullable=False)
 
     text = sa.Column(sa.Unicode, nullable=False)
 

@@ -1,8 +1,8 @@
 import uuid
+import decimal
 import collections
 
 import sqlalchemy as sa
-
 
 TotalsAndBalance = collections.namedtuple(
     'TotalsAndBalance',
@@ -29,5 +29,7 @@ class TotalsAndBalancesPerProductType(sa.types.TypeDecorator):
     def process_result_value(self, value, dialect):
         res = {}
         for product_id, data in value.items():
+            for f in ['total_credit', 'total_debit', 'balance']:
+                data[f] = decimal.Decimal(data[f])
             res[uuid.UUID(product_id)] = TotalsAndBalance(**data)
         return res
