@@ -2,9 +2,10 @@ import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 
 from .base import Base
+from .mixins import ExternalRefMixin
 
 
-class Company(Base):
+class Company(Base, ExternalRefMixin):
     __tablename__ = 'company'
 
     id = sa.Column(

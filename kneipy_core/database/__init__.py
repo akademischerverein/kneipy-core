@@ -7,6 +7,7 @@ from .person import Person
 from .account import Account, AccountTypes
 from .company import Company
 from .product import Product
+from .report import Report
 from .transaction import Transaction
 from .balancesheet import BalanceSheet
 from .transactiongroup import TransactionGroup
