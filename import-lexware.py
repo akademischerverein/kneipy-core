@@ -76,8 +76,8 @@ LexwareJournalLine = collections.namedtuple(
 
 
 class LexwareImporter():
-    def __init__(self, name, company):
-        self.session = database.Session()
+    def __init__(self, name, company, session):
+        self.session = session
         self.balancesheet = database.BalanceSheet(
             name=name,
             company=company
@@ -290,7 +290,7 @@ class LexwareImporter():
             self.new_transaction_group(line, tg_stack)
             self.transaction(line)
 
-    def import_accounts(self, lexware_accounts, guv_parent):
+    def import_accounts(self, lexware_accounts, guv_parent, append_no):
         lines = lexware_accounts.splitlines()
         start_line = lines[0]
         data_lines = lines[1:]
@@ -331,7 +331,7 @@ class LexwareImporter():
             else:
                 continue
 
-            if parsed_line.nr in ['04031', '06330', '06350', '06001', '05001', '05051', '05101']:
+            if parsed_line.nr in append_no:
                 parsed_line = parsed_line._replace(name=parsed_line.name + ' ' + parsed_line.nr)
 
             self.accounts[int(parsed_line.nr)] = database.Account(
@@ -366,17 +366,19 @@ if __name__ == "__main__":
         # seed database with essential data
         s.execute(database.Product.insert_euro_cents())
     company = database.Company(name='AV Buchhaltung')
+    session = database.Session()
     for fn in sorted(os.listdir(sys.argv[1])):
         if not fn.startswith('jour'):
             continue
         print('===', fn)
-        importer = LexwareImporter(fn, company)
+        importer = LexwareImporter(fn, company, session)
         importer.import_accounts(
             open(
                 os.path.join(sys.argv[1], 'KTPL_BP.txt'),
                 'rb'
             ).read(),
-            3400
+            3400,
+            ['04031', '06330', '06350', '06001', '05001', '05051', '05101']
         )
         importer.import_journal(
             open(

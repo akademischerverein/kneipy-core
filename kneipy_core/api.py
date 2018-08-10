@@ -1,7 +1,7 @@
 from contextlib import contextmanager
 import sqlalchemy as sa
 from .database import Product, Account, \
-    TransactionGroup, Transaction, BalanceSheet
+    TransactionGroup, Transaction, BalanceSheet, Company
 import sys
 from . import database
 
