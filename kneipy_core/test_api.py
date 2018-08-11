@@ -349,7 +349,7 @@ class ApiTest(test_util.DbTestCase):
                 credit_account_id=self.accounts['johndoe'].id,
                 debit_account_id=self.accounts['profits'].id,
                 product_id=self.session.query(Product)
-                .filter_by(id=Product.EURO_CT_ID)
+                .filter_by(id=Product.get_currency_uuid('EUR'))
                 .one().id,
                 amount=decimal.Decimal('5.15')
             )
@@ -363,14 +363,14 @@ class ApiTest(test_util.DbTestCase):
                 credit_account_id=self.accounts['profits'].id,
                 debit_account_id=self.accounts['results'].id,
                 product_id=self.session.query(Product)
-                .filter_by(id=Product.EURO_CT_ID)
+                .filter_by(id=Product.get_currency_uuid('EUR'))
                 .one().id,
                 amount=decimal.Decimal('5.15')
             )
         ctab = self.accounts['results'].cumulative_totals_and_balance
-        n.eq_(ctab[Product.EURO_CT_ID].total_credit, decimal.Decimal('5.15'))
-        n.eq_(ctab[Product.EURO_CT_ID].total_debit, decimal.Decimal('10.30'))
-        n.eq_(ctab[Product.EURO_CT_ID].balance, decimal.Decimal('5.15'))
+        n.eq_(ctab[Product.get_currency_uuid('EUR')].total_credit, decimal.Decimal('5.15'))
+        n.eq_(ctab[Product.get_currency_uuid('EUR')].total_debit, decimal.Decimal('10.30'))
+        n.eq_(ctab[Product.get_currency_uuid('EUR')].balance, decimal.Decimal('5.15'))
 
     @n.raises(ValueError)
     def test_invalid_transaction_negative_amount(self):
