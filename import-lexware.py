@@ -172,14 +172,28 @@ class LexwareImporter():
                 self.splitbuchung_start = {}
                 self.transaction_group = None
 
-                for l in data_lines:
-                    l_parts = self.decode_with_cleanup(l).split('\t')
-                    parsed_line = LexwareJournalLine(
+                data_lines_split = [
+                    self.decode_with_cleanup(l).split('\t')
+                    for l in data_lines
+                ]
+                journal_lines = [
+                    LexwareJournalLine(
                         **dict(
-                            (field, l_parts[idx])
+                            (field, l[idx])
                             for field, idx in field_mapping_idx.items()
                         )
-                    )
+                    ) for l in data_lines_split
+                ]
+
+                if self.update:
+                    transaction_nums = self.session.query(database.TransactionGroup.balancesheet_id, sa.func.max(database.TransactionGroup.id)).filter(database.TransactionGroup.balancesheet_id==self.balancesheet.id).group_by(database.TransactionGroup.balancesheet_id).all()
+                    if len(transaction_nums) > 0:
+                        transaction_num = transaction_nums[0][1]
+                        journal_lines = [l for l in journal_lines if int(l.lexware_transaction_nr)>transaction_num]
+
+                journal_lines = sorted(journal_lines, key=lambda jl: int(jl.lexware_transaction_nr))
+
+                for parsed_line in journal_lines:
                     self.import_journal_line(parsed_line, tg_stack)
                     self.last_transaction_nr = \
                         int(parsed_line.lexware_transaction_nr)
@@ -281,11 +295,6 @@ class LexwareImporter():
             )
 
     def import_journal_line(self, line, tg_stack):
-        if self.update:
-            transactions = self.session.query(database.TransactionGroup).filter(database.TransactionGroup.balancesheet==self.balancesheet) \
-                .filter(database.TransactionGroup.external_refs['lexware']==line.lexware_transaction_nr).all()
-            if len(transactions) > 0:
-                print("skip")
         if line.credit in ["0", ""] or line.debit in ["0", ""]:
             # Splitbuchung
             if int(line.lexware_transaction_nr) != self.last_transaction_nr:
