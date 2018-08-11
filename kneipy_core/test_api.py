@@ -336,6 +336,42 @@ class ApiTest(test_util.DbTestCase):
         )
         self.assert_balancesheet_invariants(self.balancesheet)
 
+    def test_sum_with_transactions_in_self_and_children(self):
+        self.create_simple_balance_sheet()
+
+        with self.balancesheet.transact_core(
+                text='Sell stuff',
+                receiptdate=datetime.datetime.now().date(),
+                receipt='IN-001'
+                ) as t:
+            t.transaction(
+                text='Sold whatever',
+                credit_account_id=self.accounts['johndoe'].id,
+                debit_account_id=self.accounts['profits'].id,
+                product_id=self.session.query(Product)
+                .filter_by(id=Product.EURO_CT_ID)
+                .one().id,
+                amount=decimal.Decimal('5.15')
+            )
+        with self.balancesheet.transact_core(
+                text='year end',
+                receiptdate=datetime.datetime.now().date(),
+                receipt='IN-001'
+                ) as t:
+            t.transaction(
+                text='close profits',
+                credit_account_id=self.accounts['profits'].id,
+                debit_account_id=self.accounts['results'].id,
+                product_id=self.session.query(Product)
+                .filter_by(id=Product.EURO_CT_ID)
+                .one().id,
+                amount=decimal.Decimal('5.15')
+            )
+        ctab = self.accounts['results'].cumulative_totals_and_balance
+        n.eq_(ctab[Product.EURO_CT_ID].total_credit, decimal.Decimal('5.15'))
+        n.eq_(ctab[Product.EURO_CT_ID].total_debit, decimal.Decimal('10.30'))
+        n.eq_(ctab[Product.EURO_CT_ID].balance, decimal.Decimal('5.15'))
+
     @n.raises(ValueError)
     def test_invalid_transaction_negative_amount(self):
         self.create_simple_balance_sheet()

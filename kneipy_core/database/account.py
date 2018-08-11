@@ -214,11 +214,9 @@ class Account(Base, ExternalRefMixin):
             if product_id not in res:
                 res[product_id] = data
             else:
-                # FIXME: Diese Schleife sollte nicht sein
-                for k in 'total_debit total_credit balance'.split():
-                    res[product_id] = add_totals_and_balance(
-                        res[product_id], data
-                    )
+                res[product_id] = add_totals_and_balance(
+                    res[product_id], data
+                )
         return res
 
     # NOT NULL / IS NULL prüfen abhängig von der type Spalte
