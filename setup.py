@@ -20,6 +20,7 @@ REQUIREMENTS = [
     'SQLAlchemy==1.2.0b2',
     'psycopg2-binary>=2.7.3.1',
     'alembic>=0.9.5',
+    'attrs',
     # Unittest-Framework
     'nose',
     'coverage',

@@ -34,6 +34,8 @@ def totals_and_balances_query(id_column):
         sa.select([
             Product.id.label('product_id'),
             sa.func.json_build_object(
+                sa.literal('product_name'),
+                sa.literal_column('Product.name'),
                 sa.literal('total_debit'),
                 sa.cast(
                     sa.func.coalesce(sa.column('total_debit'), d_zero),

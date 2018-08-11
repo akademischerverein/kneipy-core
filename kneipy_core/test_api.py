@@ -372,6 +372,48 @@ class ApiTest(test_util.DbTestCase):
         n.eq_(ctab[Product.get_currency_uuid('EUR')].total_debit, decimal.Decimal('10.30'))
         n.eq_(ctab[Product.get_currency_uuid('EUR')].balance, decimal.Decimal('5.15'))
 
+    def test_get_product(self):
+        self.create_simple_balance_sheet()
+        self.add_products()
+
+        # Erstmal etwas Inventar einkaufen
+        with self.balancesheet.transact_orm(
+                text='Accquire stock',
+                receiptdate=datetime.datetime.now().date(),
+                receipt='BUY-001'
+                ) as t:
+            t.transaction(
+                text='1 case of beer (20 bottles)',
+                credit=self.accounts['supplier'],
+                debit=self.accounts['store'],
+                product=self.products['beer'],
+                amount=20
+            )
+            t.transaction(
+                text='payment',
+                credit=self.accounts['expenses'],
+                debit=self.accounts['supplier'],
+                product=self.session.query(Product)
+                .filter_by(id=Product.get_currency_uuid('EUR'))
+                .one(),
+                amount=decimal.Decimal('5.5')
+            )
+        self.assert_balancesheet_invariants(self.balancesheet)
+        print(self.balancesheet
+            .cumulative_totals_and_balance)
+        n.eq_(
+            self.balancesheet
+            .cumulative_totals_and_balance[Product.get_currency_uuid('EUR')]
+            .get_product(self.session),
+            self.session.query(Product).get(Product.get_currency_uuid('EUR'))
+        )
+        n.eq_(
+            self.balancesheet
+            .cumulative_totals_and_balance[self.products['beer'].id]
+            .get_product(self.session),
+            self.products['beer']
+        )
+
     @n.raises(ValueError)
     def test_invalid_transaction_negative_amount(self):
         self.create_simple_balance_sheet()
