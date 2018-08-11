@@ -136,7 +136,7 @@ class TransactionInterfaceORM(TransactionInterfaceCore):
 
 @contextmanager
 def transaction_group_orm(balancesheet, text,
-                          receiptdate, receipt=None):
+                          receiptdate, receipt):
     tg = TransactionGroup(
         balancesheet=balancesheet,
         receiptdate=receiptdate, receipt=receipt,
@@ -153,7 +153,7 @@ def transaction_group_orm(balancesheet, text,
 
 @contextmanager
 def transaction_group_core(session, balancesheet_id, text,
-                           receiptdate, receipt=None):
+                           receiptdate, receipt):
     transaction_group_t = TransactionGroup.__table__
     insert_q = transaction_group_t.insert() \
         .values(
