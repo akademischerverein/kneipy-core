@@ -92,7 +92,7 @@ class ApiTest(test_util.DbTestCase):
         n.eq_(len(self.session.query(Product).all()), len(self.products) + 1)
         n.eq_(
             self.session.query(Product)
-            .filter_by(id=Product.EURO_CT_ID)
+            .filter_by(id=Product.get_currency_uuid('EUR'))
             .count(),
             1
         )
@@ -109,7 +109,7 @@ class ApiTest(test_util.DbTestCase):
             .one()
         n.eq_(balances, self.accounts['balances'])
         n.eq_(balances.cumulative_totals_and_balance
-              [Product.EURO_CT_ID].balance, 0)
+              [Product.get_currency_uuid('EUR')].balance, 0)
 
         profits = self.session.query(Account) \
             .options(
@@ -121,9 +121,9 @@ class ApiTest(test_util.DbTestCase):
             .one()
         n.eq_(profits, self.accounts['profits'])
         n.eq_(profits.cumulative_totals_and_balance
-              [Product.EURO_CT_ID].balance, 0)
+              [Product.get_currency_uuid('EUR')].balance, 0)
         n.ok_(isinstance(
-            profits.cumulative_totals_and_balance[Product.EURO_CT_ID].balance,
+            profits.cumulative_totals_and_balance[Product.get_currency_uuid('EUR')].balance,
             decimal.Decimal
         ))
 
@@ -163,14 +163,14 @@ class ApiTest(test_util.DbTestCase):
                 credit=self.accounts['expenses'],
                 debit=self.accounts['supplier'],
                 product=self.session.query(Product)
-                .filter_by(id=Product.EURO_CT_ID)
+                .filter_by(id=Product.get_currency_uuid('EUR'))
                 .one(),
                 amount=decimal.Decimal('5.5')
             )
         self.assert_balancesheet_invariants(self.balancesheet)
         n.eq_(
             self.balancesheet
-            .cumulative_totals_and_balance[Product.EURO_CT_ID]
+            .cumulative_totals_and_balance[Product.get_currency_uuid('EUR')]
             .total_debit,
             decimal.Decimal('5.5')
         )
@@ -188,7 +188,7 @@ class ApiTest(test_util.DbTestCase):
         )
         n.eq_(
             self.accounts['supplier']
-            .cumulative_totals_and_balance[Product.EURO_CT_ID]
+            .cumulative_totals_and_balance[Product.get_currency_uuid('EUR')]
             .total_debit,
             decimal.Decimal('5.5')
         )
@@ -232,14 +232,14 @@ class ApiTest(test_util.DbTestCase):
                 credit_account_id=self.accounts['johndoe'].id,
                 debit_account_id=self.accounts['profits'].id,
                 product_id=self.session.query(Product)
-                .filter_by(id=Product.EURO_CT_ID)
+                .filter_by(id=Product.get_currency_uuid('EUR'))
                 .one().id,
                 amount=decimal.Decimal('2.00')
             )
         self.assert_balancesheet_invariants(self.balancesheet)
         n.eq_(
             self.accounts['store']
-            .cumulative_totals_and_balance[Product.EURO_CT_ID]
+            .cumulative_totals_and_balance[Product.get_currency_uuid('EUR')]
             .balance,
             0
         )
@@ -266,14 +266,14 @@ class ApiTest(test_util.DbTestCase):
                 credit=self.accounts['bank'],
                 debit=self.accounts['johndoe'],
                 product=self.session.query(Product)
-                .filter_by(id=Product.EURO_CT_ID)
+                .filter_by(id=Product.get_currency_uuid('EUR'))
                 .one(),
                 amount=decimal.Decimal('2.00')
             )
         self.assert_balancesheet_invariants(self.balancesheet)
         n.eq_(
             self.accounts['johndoe']
-            .cumulative_totals_and_balance[Product.EURO_CT_ID]
+            .cumulative_totals_and_balance[Product.get_currency_uuid('EUR')]
             .balance,
             0
         )
@@ -291,7 +291,7 @@ class ApiTest(test_util.DbTestCase):
         )
         n.eq_(
             self.accounts['results']
-            .cumulative_totals_and_balance[Product.EURO_CT_ID]
+            .cumulative_totals_and_balance[Product.get_currency_uuid('EUR')]
             .balance,
             decimal.Decimal('-3.5')
         )
@@ -300,7 +300,7 @@ class ApiTest(test_util.DbTestCase):
         # Wert entspricht Guthaben (2€ in diesem Fall)
         n.eq_(
             self.accounts['bank']
-            .cumulative_totals_and_balance[Product.EURO_CT_ID]
+            .cumulative_totals_and_balance[Product.get_currency_uuid('EUR')]
             .balance,
             decimal.Decimal('-2')
         )
@@ -330,7 +330,7 @@ class ApiTest(test_util.DbTestCase):
             self.session.query(Account).filter_by(
                 id=self.accounts['bank'].id
             ).one()
-            .cumulative_totals_and_balance[Product.EURO_CT_ID]
+            .cumulative_totals_and_balance[Product.get_currency_uuid('EUR')]
             .balance,
             0
         )
@@ -348,7 +348,7 @@ class ApiTest(test_util.DbTestCase):
                 credit=self.accounts['bank'],
                 debit=self.accounts['johndoe'],
                 product=self.session.query(Product)
-                .filter_by(id=Product.EURO_CT_ID)
+                .filter_by(id=Product.get_currency_uuid('EUR'))
                 .one(),
                 amount=decimal.Decimal('-20')
             )
@@ -365,7 +365,7 @@ class ApiTest(test_util.DbTestCase):
                 credit=self.accounts['bank'],
                 debit=self.accounts['bank'],
                 product=self.session.query(Product)
-                .filter_by(id=Product.EURO_CT_ID)
+                .filter_by(id=Product.get_currency_uuid('EUR'))
                 .one(),
                 amount=decimal.Decimal('20')
             )

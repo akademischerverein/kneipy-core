@@ -203,7 +203,7 @@ class LexwareImporter():
                     text=line.text[len('<Storno> '):],
                     credit_account_id=self.get_account(credit),
                     debit_account_id=self.get_account(debit),
-                    product_id=database.Product.EURO_CT_ID,
+                    product_id=database.Product.get_currency_uuid('EUR'),
                     amount=-amount
                 ).options(
                     sa.orm.joinedload('cancelled_by')
@@ -246,7 +246,7 @@ class LexwareImporter():
                     transaction_id=original_transaction.id,
                     credit_account_id=self.get_account(credit),
                     debit_account_id=self.get_account(debit),
-                    product_id=database.Product.EURO_CT_ID,
+                    product_id=database.Product.get_currency_uuid('EUR'),
                     original_amount=-amount,
                     text=line.text,
                 )
@@ -262,7 +262,7 @@ class LexwareImporter():
             self.transaction_group.transaction(
                 credit_account_id=self.get_account(credit),
                 debit_account_id=self.get_account(debit),
-                product_id=database.Product.EURO_CT_ID,
+                product_id=database.Product.get_currency_uuid('EUR'),
                 amount=amount,
                 text=line.text
             )
@@ -368,7 +368,7 @@ if __name__ == "__main__":
     assert database.engine.connect()
     with session_scope(database.Session()) as s:
         # seed database with essential data
-        s.execute(database.Product.insert_euro_cents())
+        s.execute(database.Product.insert_currency('EUR'))
     company = database.Company(name='AV Buchhaltung')
     session = database.Session()
     session.add(company)

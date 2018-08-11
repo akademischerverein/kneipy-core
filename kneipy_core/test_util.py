@@ -65,7 +65,7 @@ class DbTestCase(unittest.TestCase):
 
         with session_scope(database.Session()) as s:
             # seed database with essential data
-            s.execute(database.Product.insert_euro_cents())
+            s.execute(database.Product.insert_currency('EUR'))
 
     #
     # Das folgende basiert sehr auf

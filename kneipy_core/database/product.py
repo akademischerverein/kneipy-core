@@ -17,13 +17,15 @@ class Product(Base):
     )
     name = sa.Column(sa.Unicode, nullable=False)
 
-    EURO_CT_ID = uuid.UUID(bytes='€ ct'.encode("utf-8").rjust(16, b'\x00'))
+    @classmethod
+    def get_currency_uuid(cls, isocode):
+        return uuid.UUID(bytes=isocode.encode("utf-8").rjust(16, b'\x00'))
 
     @classmethod
-    def insert_euro_cents(cls):
+    def insert_currency(cls, isocode):
         insert_stmt = pg_insert(cls.__table__).values(
-            id=cls.EURO_CT_ID,
-            name='Eurocent'
+            id=cls.get_currency_uuid(isocode),
+            name=isocode
         )
         return insert_stmt.on_conflict_do_nothing(
             index_elements=['id']
