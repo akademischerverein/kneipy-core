@@ -3,6 +3,7 @@ import datetime
 import decimal
 import getpass
 import os
+import re
 import sys
 from contextlib import ExitStack
 
@@ -75,11 +76,12 @@ LexwareJournalLine = collections.namedtuple(
 
 
 class LexwareImporter():
-    def __init__(self, name, company, session):
+    def __init__(self, name, year, company, session):
         self.session = session
         self.balancesheet = database.BalanceSheet(
             name=name,
-            company=company
+            company=company,
+            daterange='[{}-10-01,{}-09-30]'.format(year, year+1)
         )
         self.session.add(self.balancesheet)
         self.session.flush()
@@ -374,7 +376,9 @@ if __name__ == "__main__":
         if not fn.startswith('jour'):
             continue
         print('===', fn)
-        importer = LexwareImporter(fn, company, session)
+        match = re.search(r"jour_bp(\d{4})\.txt", fn)
+        year = int(match.group(1))
+        importer = LexwareImporter('Geschäftsjahr {}'.format(year), year, company, session)
         importer.import_accounts(
             open(
                 os.path.join(sys.argv[1], 'KTPL_BP.txt'),
