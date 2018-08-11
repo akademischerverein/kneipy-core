@@ -98,7 +98,7 @@ class BalanceSheet(Base):
         return res
 
     @contextmanager
-    def transact_orm(self, text, receiptdate, receipt=None):
+    def transact_orm(self, text, receiptdate, receipt):
         from ..api import transaction_group_orm  # avoid a circular import
 
         with transaction_group_orm(
@@ -108,7 +108,7 @@ class BalanceSheet(Base):
             yield transaction_group
 
     @contextmanager
-    def transact_core(self, text, receiptdate, receipt=None):
+    def transact_core(self, text, receiptdate, receipt):
         from ..api import transaction_group_core  # avoid a circular import
 
         with transaction_group_core(

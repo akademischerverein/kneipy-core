@@ -77,15 +77,28 @@ LexwareJournalLine = collections.namedtuple(
 
 class LexwareImporter():
     def __init__(self, name, year, company, session):
-        self.session = session
-        self.balancesheet = database.BalanceSheet(
-            name=name,
-            company=company,
-            daterange='[{}-10-01,{}-09-30]'.format(year, year+1)
-        )
-        self.session.add(self.balancesheet)
-        self.session.flush()
+        self.update = False
         self.accounts = {}
+        self.accounts_todo = []
+        self.session = session
+        from_date = datetime.date(year, 10, 1)
+        to_date = datetime.date(year+1, 9, 30)
+        balances = session.query(database.BalanceSheet).filter(database.BalanceSheet.company==company, database.BalanceSheet.daterange.contains(from_date), database.BalanceSheet.daterange.contains(to_date)).all()
+        if len(balances) == 0:
+            self.balancesheet = database.BalanceSheet(
+                name=name,
+                company=company,
+                daterange='[{}-10-01,{}-09-30]'.format(year, year+1)
+            )
+            self.session.add(self.balancesheet)
+            self.session.flush()
+        else:
+            self.update = True
+            self.balancesheet = balances[0]
+
+            accounts = session.query(database.Account).filter(database.Account.balancesheet == self.balancesheet).all()
+            for account in accounts:
+                self.accounts[int(account.external_refs['lexware'])] = account
         self.cancel_transactions = {
             'ok': 0,
             'multiple_same': 0,
@@ -268,6 +281,11 @@ class LexwareImporter():
             )
 
     def import_journal_line(self, line, tg_stack):
+        if self.update:
+            transactions = self.session.query(database.TransactionGroup).filter(database.TransactionGroup.balancesheet==self.balancesheet) \
+                .filter(database.TransactionGroup.external_refs['lexware']==line.lexware_transaction_nr).all()
+            if len(transactions) > 0:
+                print("skip")
         if line.credit in ["0", ""] or line.debit in ["0", ""]:
             # Splitbuchung
             if int(line.lexware_transaction_nr) != self.last_transaction_nr:
@@ -338,7 +356,10 @@ class LexwareImporter():
             if parsed_line.nr in append_no:
                 parsed_line = parsed_line._replace(name=parsed_line.name + ' ' + parsed_line.nr)
 
-            self.accounts[int(parsed_line.nr)] = database.Account(
+            if int(parsed_line.nr) in self.accounts:
+                continue
+
+            account = database.Account(
                 external_refs={
                     'lexware': str(parsed_line.nr)
                 },
@@ -346,14 +367,48 @@ class LexwareImporter():
                 name=parsed_line.name,
                 type=account_type
             )
-        for a in self.accounts.values():
+            self.accounts[int(parsed_line.nr)] = account
+            self.accounts_todo.append(account)
+        for a in self.accounts_todo:
             if a.type == database.AccountTypes.Expenses:
                 a.parent = self.accounts[guv_parent]
             if a.type == database.AccountTypes.Profits:
                 a.parent = self.accounts[guv_parent]
-        for a in self.accounts.values():
+        for a in self.accounts_todo:
             self.session.add(a)
         self.session.flush()
+
+    def verify(self):
+        return True
+
+
+def run(company_name, accounts, journal, session):
+    with session_scope(session) as s:
+        # seed database with essential data
+        s.execute(database.Product.insert_currency('EUR'))
+
+    companies = session.query(database.Company).filter(database.Company.name==company_name).all()
+    if len(companies) == 0:
+        company = database.Company(name='AV Buchhaltung')
+        session.add(company)
+    else:
+        company = companies[0]
+
+    match = re.search(r"jour_bp(\d{4})\.txt", fn)
+    year = int(match.group(1))
+    importer = LexwareImporter('Geschäftsjahr {}'.format(year), year, company, session)
+    importer.import_accounts(
+        open(accounts, 'rb').read(),
+        3400,
+        ['04031', '06330', '06350', '06001', '05001', '05051', '05101']
+    )
+    importer.import_journal(
+        open(journal, 'rb').read()
+    )
+    if not importer.verify():
+        session.rollback()
+    else:
+        session.commit()
 
 
 if __name__ == "__main__":
@@ -366,31 +421,14 @@ if __name__ == "__main__":
     )
     database.connect(database_uri, echo=False)
     assert database.engine.connect()
-    with session_scope(database.Session()) as s:
-        # seed database with essential data
-        s.execute(database.Product.insert_currency('EUR'))
-    company = database.Company(name='AV Buchhaltung')
-    session = database.Session()
-    session.add(company)
     for fn in sorted(os.listdir(sys.argv[1])):
         if not fn.startswith('jour'):
             continue
         print('===', fn)
-        match = re.search(r"jour_bp(\d{4})\.txt", fn)
-        year = int(match.group(1))
-        importer = LexwareImporter('Geschäftsjahr {}'.format(year), year, company, session)
-        importer.import_accounts(
-            open(
-                os.path.join(sys.argv[1], 'KTPL_BP.txt'),
-                'rb'
-            ).read(),
-            3400,
-            ['04031', '06330', '06350', '06001', '05001', '05051', '05101']
+        session = database.Session()
+        run(
+            'AV Buchhaltung',
+            os.path.join(sys.argv[1], 'KTPL_BP.txt'),
+            os.path.join(sys.argv[1], fn),
+            session
         )
-        importer.import_journal(
-            open(
-                os.path.join(sys.argv[1], fn),
-                'rb'
-            ).read()
-        )
-        importer.session.commit()
