@@ -1,15 +1,14 @@
+import collections
+import datetime
+import decimal
+import getpass
 import os
 import sys
-import getpass
-import datetime
-import collections
 from contextlib import ExitStack
 
 import sqlalchemy as sa
-
 from kneipy_core import database
-from kneipy_core.lib.sqlalchemy_session_scope import \
-    session_scope
+from kneipy_core.lib.sqlalchemy_session_scope import session_scope
 from kneipy_core.lib.timed import timed
 
 VERBOSE = False
@@ -191,9 +190,9 @@ class LexwareImporter():
                     force_not_cancelled=False):
         credit = int(line.credit if credit is None else credit)
         debit = int(line.debit if debit is None else debit)
-        amount = int(100*float(
+        amount = decimal.Decimal(
             line.amount.replace(".", "").replace(",", ".")
-        ))
+        )
         if line.text.startswith('<Storno> ') and not force_not_cancelled:
             # finden der stornierten Buchung
             original_transactions = self.session.query(database.Transaction) \
@@ -370,6 +369,7 @@ if __name__ == "__main__":
         s.execute(database.Product.insert_euro_cents())
     company = database.Company(name='AV Buchhaltung')
     session = database.Session()
+    session.add(company)
     for fn in sorted(os.listdir(sys.argv[1])):
         if not fn.startswith('jour'):
             continue
