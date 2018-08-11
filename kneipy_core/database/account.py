@@ -9,11 +9,13 @@ from sqlalchemy.dialects.postgresql import ENUM
 from kneipy_core.lib.sqlalchemy_uuid import GUID
 
 from .base import Base
-from .util import TotalsAndBalancesPerProductType, \
+from .util import TotalsAndBalancePerProduct, \
+    TotalsAndBalancesPerProductType, \
     add_totals_and_balance
 from .mixins import ExternalRefMixin
 from .product import Product
-from .transaction import Transaction, SA_AMOUNT_TYPE
+from .transaction import SA_AMOUNT_TYPE, \
+    Transaction
 
 
 def totals_and_balances_query(id_column):
@@ -32,8 +34,6 @@ def totals_and_balances_query(id_column):
         sa.select([
             Product.id.label('product_id'),
             sa.func.json_build_object(
-                sa.literal('product_name'),
-                Product.name,
                 sa.literal('total_debit'),
                 sa.cast(
                     sa.func.coalesce(sa.column('total_debit'), d_zero),
@@ -53,6 +53,7 @@ def totals_and_balances_query(id_column):
             ).label('data')
         ]).select_from(
             sa.outerjoin(
+                # TODO: Product muss hier eigentlich nicht vorkommen
                 Product,
                 sa.select([
                     Transaction.debit_account_id.label('account_id'),
@@ -83,8 +84,7 @@ def totals_and_balances_query(id_column):
         ).where(
             sa.or_(
                 sa.column("total_debit").isnot(None),
-                sa.column("total_credit").isnot(None),
-                Product.id == Product.EURO_CT_ID
+                sa.column("total_credit").isnot(None)
             )
         ).alias('totals_and_balances_per_product')
     )
@@ -181,7 +181,7 @@ class Account(Base, ExternalRefMixin):
 
     @property
     def cumulative_totals_and_balance(self):
-        res = {}
+        res = TotalsAndBalancePerProduct()
         # 10 Ebenen des Konten-Baumes laden mit einem Query pro Ebene
         # Kostet leider einen zusätzlich, da die aktuelle Instanz
         # erneut geladen wird

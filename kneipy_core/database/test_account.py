@@ -15,13 +15,11 @@ class TotalsAndBalancesPerProductTypeTest(TestCase):
     def process_result_value_test(self):
         result_value = {
             'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa': {
-                'product_name': 'a',
                 'total_credit': 10,
                 'total_debit': 20,
                 'balance': -10
             },
             'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb': {
-                'product_name': 'b',
                 'total_credit': 100,
                 'total_debit': 200,
                 'balance': -100
