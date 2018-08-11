@@ -345,6 +345,10 @@ class LexwareImporter():
                 (field, l_parts[idx])
                 for field, idx in field_mapping_idx.items()
             ))
+
+            if int(parsed_line.nr) in self.accounts:
+                continue
+
             account_type = None
             key_akt = 'A-' + parsed_line.z_aktiva
             key_pas = 'P-' + parsed_line.z_passiva
@@ -365,9 +369,6 @@ class LexwareImporter():
             if parsed_line.nr in append_no:
                 parsed_line = parsed_line._replace(name=parsed_line.name + ' ' + parsed_line.nr)
 
-            if int(parsed_line.nr) in self.accounts:
-                continue
-
             account = database.Account(
                 external_refs={
                     'lexware': str(parsed_line.nr)
@@ -383,7 +384,6 @@ class LexwareImporter():
                 a.parent = self.accounts[guv_parent]
             if a.type == database.AccountTypes.Profits:
                 a.parent = self.accounts[guv_parent]
-        for a in self.accounts_todo:
             self.session.add(a)
         self.session.flush()
 
