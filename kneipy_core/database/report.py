@@ -22,6 +22,10 @@ class Report(Base, ExternalRefMixin):
     )
     context_id = sa.Column(sa.ForeignKey('report_context.id'))
 
+    @declared_attr
+    def __table_args__(self):
+        return tuple(ExternalRefMixin.table_args())
+
 
 class ReportContext(Base):
     __tablename__ = 'report_context'
