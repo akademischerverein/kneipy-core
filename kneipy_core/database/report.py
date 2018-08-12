@@ -18,23 +18,27 @@ class Report(Base, ExternalRefMixin):
         sa.UnicodeText(),
         nullable=False
     )
-    person_id = sa.Column(
-        sa.ForeignKey('person.id')
+    context_id = sa.Column(sa.ForeignKey('report_context.id'))
+
+
+class ReportContext(Base):
+    __tablename__ = 'report_context'
+    id = sa.Column(
+        GUID,
+        primary_key=True,
+        server_default=sa.text('gen_random_uuid()')
     )
-    balancesheet_id = sa.Column(GUID, nullable=False)
-    up_to_transaction_id = sa.Column(sa.BigInteger, nullable=False)
+    balancesheet_ids = sa.Column(sa.Array(GUID), nullable=False)
+    from_transaction_ids = sa.Column(sa.Array(sa.BigInteger), nullable=False)
+    up_to_transaction_ids = sa.Column(sa.Array(sa.BigInteger), nullable=False)
+    person_id = sa.Column(sa.ForeignKey('person.id'), nullable=True)
 
     @declared_attr
     def __table_args__(self):
-        return tuple(ExternalRefMixin.table_args() + [
-            sa.ForeignKeyConstraint(
-                [
-                    'balancesheet_id',
-                    'up_to_transaction_id',
-                ], [
-                    'transaction.balancesheet_id',
-                    'transaction.id',
-                ],
-                onupdate="RESTRICT", ondelete="RESTRICT"
-            )
+        return tuple([
+            # TODO: ForeignKeyConstraint für alle balancesheet ids vs transaction ids
+            sa.CheckConstraint("""
+                array_length(balancesheet_ids, 1)=array_length(from_transaction_ids, 1) AND
+                array_length(from_transaction_ids, 1)=array_length(up_to_transaction_ids)
+            """, name='balancesheets_transactions_array_length_check'),
         ])
