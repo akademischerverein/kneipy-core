@@ -398,7 +398,7 @@ def run(company_name, accounts, journal, session):
 
     companies = session.query(database.Company).filter(database.Company.name==company_name).all()
     if len(companies) == 0:
-        company = database.Company(name='AV Buchhaltung')
+        company = database.Company(name=company_name)
         session.add(company)
     else:
         company = companies[0]
