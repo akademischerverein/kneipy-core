@@ -17,7 +17,7 @@ with open(os.path.join(here, 'README.md')) as f:
     README = f.read()
 
 REQUIREMENTS = [
-    'SQLAlchemy==1.2.0b2',
+    'SQLAlchemy==1.2.10',
     'psycopg2-binary>=2.7.3.1',
     'alembic>=0.9.5',
     'attrs',

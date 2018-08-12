@@ -25,7 +25,6 @@ class TotalsAndBalance():
     product_id = attr.ib()
     total_credit = attr.ib(converter=convert_to_decimal)
     total_debit = attr.ib(converter=convert_to_decimal)
-    balance = attr.ib(converter=convert_to_decimal)
     _product_name = attr.ib(default=None)
     _product = attr.ib(default=None)
 
@@ -50,6 +49,10 @@ class TotalsAndBalance():
                     self._product = session.merge(self._product, load=False)
         return self._product
 
+    @property
+    def balance(self):
+        return self.total_debit - self.total_credit
+
     def add(self, other):
         assert self.product_id == other.product_id
         if self._product and other._product:
@@ -63,7 +66,6 @@ class TotalsAndBalance():
             product_name=product_name, product=product,
             total_debit=self.total_debit + other.total_debit,
             total_credit=self.total_credit + other.total_credit,
-            balance=self.balance + other.balance,
         )
 
 
@@ -72,7 +74,6 @@ class TotalsAndBalancePerProduct(collections.UserDict):
         return TotalsAndBalance(
             product_id=key,
             total_credit=0, total_debit=0,
-            balance=0
         )
 
 
@@ -89,8 +90,6 @@ class TotalsAndBalancesPerProductType(sa.types.TypeDecorator):
     def process_result_value(self, value, dialect):
         res = TotalsAndBalancePerProduct()
         for product_id, data in value.items():
-            for f in ['total_credit', 'total_debit', 'balance']:
-                data[f] = decimal.Decimal(data[f])
             res[uuid.UUID(product_id)] = TotalsAndBalance(
                 product_id=uuid.UUID(product_id), **data
             )

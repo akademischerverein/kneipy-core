@@ -1,4 +1,5 @@
 import enum
+import decimal
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
@@ -46,47 +47,49 @@ def totals_and_balances_query(id_column):
                     sa.func.coalesce(sa.column('total_credit'), d_zero),
                     sa.Text
                 ),
-                sa.literal('balance'),
-                sa.cast(
-                    sa.func.coalesce(sa.column('total_debit'), d_zero) -
-                    sa.func.coalesce(sa.column('total_credit'), d_zero),
-                    sa.Text
-                )
             ).label('data')
         ]).select_from(
             sa.outerjoin(
-                # TODO: Product muss hier eigentlich nicht vorkommen
                 Product,
                 sa.select([
-                    Transaction.debit_account_id.label('account_id'),
-                    Transaction.product_id.label('product_id'),
-                    sa.func.sum(Transaction.amount).label('total_debit'),
-                ]).group_by(
-                    Transaction.debit_account_id,
-                    Transaction.product_id
-                ).alias('total_debit'),
+                    sa.func.coalesce(sa.column('credit_account_id'), sa.column('debit_account_id')).label('account_id'),
+                    sa.func.sum(
+                        sa.case([
+                            (sa.column('credit_account_id').isnot(None), sa.column('amount'))
+                        ], else_=sa.literal(decimal.Decimal('0')))
+                    ).label('total_credit'),
+                    sa.func.sum(
+                        sa.case([
+                            (sa.column('debit_account_id').isnot(None), sa.column('amount'))
+                        ], else_=sa.literal(decimal.Decimal('0')))
+                    ).label('total_debit'),
+                    sa.literal_column('product_id')
+                ]).select_from(
+                    sa.select([
+                        Transaction.product_id.label('product_id'),
+                        Transaction.credit_account_id.label('credit_account_id'),
+                        Transaction.debit_account_id.label('debit_account_id'),
+                        sa.func.sum(Transaction.amount).label('amount'),
+                    ]).group_by(
+                        sa.func.grouping_sets(
+                            sa.tuple_(
+                                Transaction.credit_account_id,
+                                Transaction.product_id
+                            ),
+                            sa.tuple_(
+                                Transaction.debit_account_id,
+                                Transaction.product_id
+                            )
+                        )
+                    ).alias('raw_sums')
+                ).group_by(
+                    sa.literal_column('product_id'),
+                    sa.func.coalesce(sa.column('credit_account_id'), sa.column('debit_account_id'))
+                ).alias('sums'),
                 sa.and_(
-                    sa.literal_column('total_debit.product_id') == Product.id,
-                    sa.literal_column('total_debit.Account_id') == id_column
+                    sa.literal_column('sums.product_id') == Product.id,
+                    sa.literal_column('sums.account_id') == id_column
                 )
-            ).outerjoin(
-                sa.select([
-                    Transaction.credit_account_id.label('account_id'),
-                    Transaction.product_id.label('product_id'),
-                    sa.func.sum(Transaction.amount).label('total_credit'),
-                ]).group_by(
-                    Transaction.credit_account_id,
-                    Transaction.product_id
-                ).alias('total_credit'),
-                sa.and_(
-                    sa.literal_column('total_credit.product_id') == Product.id,
-                    sa.literal_column('total_credit.Account_id') == id_column
-                )
-            )
-        ).where(
-            sa.or_(
-                sa.column("total_debit").isnot(None),
-                sa.column("total_credit").isnot(None)
             )
         ).alias('totals_and_balances_per_product')
     )

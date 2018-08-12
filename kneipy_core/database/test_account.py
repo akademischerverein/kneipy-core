@@ -17,12 +17,10 @@ class TotalsAndBalancesPerProductTypeTest(TestCase):
             'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa': {
                 'total_credit': 10,
                 'total_debit': 20,
-                'balance': -10
             },
             'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb': {
                 'total_credit': 100,
                 'total_debit': 200,
-                'balance': -100
             }
         }
         r = TotalsAndBalancesPerProductType().process_result_value(
@@ -30,8 +28,8 @@ class TotalsAndBalancesPerProductTypeTest(TestCase):
         )
         n.eq_(r[uuid.UUID(
             'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
-        )].balance, -10)
+        )].balance, 10)
         n.eq_(r[uuid.UUID(
             'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
-        )].balance, -100)
+        )].balance, 100)
         n.eq_(len(r), 2)
