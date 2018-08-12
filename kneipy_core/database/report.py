@@ -1,5 +1,6 @@
 import sqlalchemy as sa
 from sqlalchemy.ext.declarative import declared_attr
+from sqlalchemy.dialects.postgresql.ranges import NUMRANGE
 
 from kneipy_core.lib.sqlalchemy_uuid import GUID
 
@@ -29,8 +30,7 @@ class ReportContext(Base):
         server_default=sa.text('gen_random_uuid()')
     )
     balancesheet_ids = sa.Column(sa.Array(GUID), nullable=False)
-    from_transaction_ids = sa.Column(sa.Array(sa.BigInteger), nullable=False)
-    up_to_transaction_ids = sa.Column(sa.Array(sa.BigInteger), nullable=False)
+    transaction_ids = sa.Column(sa.Array(NUMRANGE), nullable=False)
     person_id = sa.Column(sa.ForeignKey('person.id'), nullable=True)
 
     @declared_attr
@@ -38,7 +38,6 @@ class ReportContext(Base):
         return tuple([
             # TODO: ForeignKeyConstraint für alle balancesheet ids vs transaction ids
             sa.CheckConstraint("""
-                array_length(balancesheet_ids, 1)=array_length(from_transaction_ids, 1) AND
-                array_length(from_transaction_ids, 1)=array_length(up_to_transaction_ids)
+                array_length(balancesheet_ids, 1)=array_length(transaction_ids, 1)
             """, name='balancesheets_transactions_array_length_check'),
         ])
