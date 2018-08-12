@@ -1,6 +1,7 @@
 import sqlalchemy as sa
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.dialects.postgresql.ranges import NUMRANGE
+from sqlalchemy.dialects.postgresql.array import ARRAY
 
 from kneipy_core.lib.sqlalchemy_uuid import GUID
 
@@ -29,8 +30,8 @@ class ReportContext(Base):
         primary_key=True,
         server_default=sa.text('gen_random_uuid()')
     )
-    balancesheet_ids = sa.Column(sa.Array(GUID), nullable=False)
-    transaction_ids = sa.Column(sa.Array(NUMRANGE), nullable=False)
+    balancesheet_ids = sa.Column(ARRAY(GUID), nullable=False)
+    transaction_ids = sa.Column(ARRAY(NUMRANGE), nullable=False)
     person_id = sa.Column(sa.ForeignKey('person.id'), nullable=True)
 
     @declared_attr
