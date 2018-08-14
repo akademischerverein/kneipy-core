@@ -37,9 +37,8 @@ setup(
     keywords=[],
     packages=find_packages(),
     data_files=[
-        ('lib/kneipy/core-migrations', [
-            'alembic.ini'
-        ] + glob.glob('migrations/versions/*.py'))
+        ('lib/kneipy/core-migrations',
+            glob.glob('migrations/versions/*.py'))
     ],
     include_package_data=True,
     classifiers=[

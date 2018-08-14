@@ -259,9 +259,6 @@ class Account(Base, ExternalRefMixin):
                 name='uq_account_balancesheet_id_for_fk'
             ),
             sa.UniqueConstraint(
-                'person_id', 'balancesheet_id'
-            ),
-            sa.UniqueConstraint(
                 'balancesheet_id', 'name',
                 name='uq_account_balancesheet_id_name'
             )
