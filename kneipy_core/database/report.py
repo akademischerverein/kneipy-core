@@ -20,29 +20,58 @@ class Report(Base, ExternalRefMixin):
         sa.UnicodeText(),
         nullable=False
     )
-    context_id = sa.Column(sa.ForeignKey('report_context.id'))
+    datetime = sa.Column(
+        sa.DateTime(timezone=True),
+        nullable=False,
+        server_default=sa.func.now()
+    )
+    parent = sa.Column(sa.ForeignKey(
+        'id', onupdate="RESTRICT", ondelete="RESTRICT"
+    ), nullable=True)
+    context_id = sa.Column(sa.ForeignKey(
+        'report_context.id', onupdate="RESTRICT", ondelete="RESTRICT"
+    ))
 
     @declared_attr
     def __table_args__(self):
         return tuple(ExternalRefMixin.table_args())
 
 
-class ReportContext(Base):
+class ReportContext(Base, ExternalRefMixin):
     __tablename__ = 'report_context'
     id = sa.Column(
         GUID,
         primary_key=True,
         server_default=sa.text('gen_random_uuid()')
     )
-    balancesheet_ids = sa.Column(ARRAY(GUID), nullable=False)
-    transaction_ids = sa.Column(ARRAY(NUMRANGE), nullable=False)
-    person_id = sa.Column(sa.ForeignKey('person.id'), nullable=True)
+    person_id = sa.Column(
+        sa.ForeignKey('person.id', onupdate="RESTRICT", ondelete="RESTRICT"),
+        nullable=True
+    )
 
     @declared_attr
     def __table_args__(self):
-        return tuple([
-            # TODO: ForeignKeyConstraint für alle balancesheet ids vs transaction ids
-            sa.CheckConstraint("""
-                array_length(balancesheet_ids, 1)=array_length(transaction_ids, 1)
-            """, name='balancesheets_transactions_array_length_check'),
-        ])
+        return tuple(ExternalRefMixin.table_args())
+
+
+class ReportContextMapping(Base):
+    __tablename__ = 'report_context_mapping'
+    __table_args__ = (
+        sa.PrimaryKeyConstraint(
+            'report_context_id',
+            'balancesheet_id'
+        ),
+    )
+
+    report_context_id = sa.Column(sa.ForeignKey(
+        'report_context.id',
+        onupdate="RESTRICT",
+        ondelete="RESTRICT"
+    ))
+    balancesheet_id = sa.Column(sa.ForeignKey(
+        'balancesheet.id',
+        onupdate="RESTRICT",
+        ondelete="RESTRICT"
+    ))
+    transaction_id_range = sa.Column(NUMRANGE, nullable=False)
+    # TODO: foreign key on transaction id range
