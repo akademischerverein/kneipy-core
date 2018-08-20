@@ -26,7 +26,7 @@ class Report(Base, ExternalRefMixin):
         server_default=sa.func.now()
     )
     parent = sa.Column(sa.ForeignKey(
-        'id', onupdate="RESTRICT", ondelete="RESTRICT"
+        'report.id', onupdate="RESTRICT", ondelete="RESTRICT"
     ), nullable=True)
     context_id = sa.Column(sa.ForeignKey(
         'report_context.id', onupdate="RESTRICT", ondelete="RESTRICT"
