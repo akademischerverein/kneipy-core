@@ -1,5 +1,6 @@
 import sqlalchemy as sa
 from sqlalchemy.ext.declarative import declared_attr
+from sqlalchemy.dialects.postgresql import ExcludeConstraint
 from sqlalchemy.dialects.postgresql.ranges import NUMRANGE
 from sqlalchemy.dialects.postgresql.array import ARRAY
 
@@ -20,51 +21,67 @@ class Report(Base, ExternalRefMixin):
         sa.UnicodeText(),
         nullable=False
     )
-    datetime = sa.Column(
-        sa.DateTime(timezone=True),
-        nullable=False,
-        server_default=sa.func.now()
-    )
-    parent = sa.Column(sa.ForeignKey(
-        'report.id', onupdate="RESTRICT", ondelete="RESTRICT"
-    ), nullable=True)
-    context_id = sa.Column(sa.ForeignKey(
-        'report_context.id', onupdate="RESTRICT", ondelete="RESTRICT"
-    ))
-
-    @declared_attr
-    def __table_args__(self):
-        return tuple(ExternalRefMixin.table_args())
-
-
-class ReportContext(Base, ExternalRefMixin):
-    __tablename__ = 'report_context'
-    id = sa.Column(
-        GUID,
-        primary_key=True,
-        server_default=sa.text('gen_random_uuid()')
+    batch_id = sa.Column(
+        sa.ForeignKey('report_batch.id', onupdate="RESTRICT", ondelete="RESTRICT"),
+        nullable=False
     )
     person_id = sa.Column(
         sa.ForeignKey('person.id', onupdate="RESTRICT", ondelete="RESTRICT"),
         nullable=True
     )
+    account_id = sa.Column(
+        sa.ForeignKey('account.id', onupdate="RESTRICT", ondelete="RESTRICT"),
+        nullable=True
+    )
+    state = sa.Column(
+        sa.UnicodeText(),
+        nullable=False
+    )
+
+    @declared_attr
+    def __table_args__(self):
+        return tuple(ExternalRefMixin.table_args() + [
+            sa.CheckConstraint(
+                '''
+                (person_id IS NULL) OR
+                (account_id IS NULL)
+                ''',
+                name='account_or_person_null'
+            )
+        ])
+
+
+class ReportBatch(Base, ExternalRefMixin):
+    __tablename__ = 'report_batch'
+    id = sa.Column(
+        GUID,
+        primary_key=True,
+        server_default=sa.text('gen_random_uuid()')
+    )
+    generated_at = sa.Column(
+        sa.DateTime(timezone=True),
+        nullable=False,
+        server_default=sa.func.now()
+    )
+    state = sa.Column(
+        sa.UnicodeText(),
+        nullable=False
+    )
 
     @declared_attr
     def __table_args__(self):
         return tuple(ExternalRefMixin.table_args())
 
 
-class ReportContextMapping(Base):
-    __tablename__ = 'report_context_mapping'
-    __table_args__ = (
-        sa.PrimaryKeyConstraint(
-            'report_context_id',
-            'balancesheet_id'
-        ),
+class ReportTransactions(Base):
+    __tablename__ = 'report_transactions'
+    id = sa.Column(
+        GUID,
+        primary_key=True,
+        server_default=sa.text('gen_random_uuid()')
     )
-
-    report_context_id = sa.Column(sa.ForeignKey(
-        'report_context.id',
+    report_id = sa.Column(sa.ForeignKey(
+        'report.id',
         onupdate="RESTRICT",
         ondelete="RESTRICT"
     ))
@@ -74,4 +91,13 @@ class ReportContextMapping(Base):
         ondelete="RESTRICT"
     ))
     transaction_id_range = sa.Column(NUMRANGE, nullable=False)
-    # TODO: foreign key on transaction id range
+    only_informational = sa.Column(sa.Boolean())
+
+    @declared_attr
+    def __table_args__(self):
+        return tuple([
+            ExcludeConstraint(
+                ('balancesheet_id', '='), ('report_id', '='),
+                ('transaction_id_range', '&&')
+            )
+        ])
