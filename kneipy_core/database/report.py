@@ -3,6 +3,7 @@ from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.dialects.postgresql import ExcludeConstraint
 from sqlalchemy.dialects.postgresql.ranges import NUMRANGE
 from sqlalchemy.dialects.postgresql.array import ARRAY
+from sqlalchemy.orm import relationship
 
 from kneipy_core.lib.sqlalchemy_uuid import GUID
 
@@ -21,18 +22,25 @@ class Report(Base, ExternalRefMixin):
         sa.UnicodeText(),
         nullable=False
     )
+
     batch_id = sa.Column(
         sa.ForeignKey('report_batch.id', onupdate="RESTRICT", ondelete="RESTRICT"),
         nullable=False
     )
+    batch = relationship('ReportBatch', backref='reports')
+
     person_id = sa.Column(
         sa.ForeignKey('person.id', onupdate="RESTRICT", ondelete="RESTRICT"),
         nullable=True
     )
+    person = relationship('Person', backref='reports')
+
     account_id = sa.Column(
         sa.ForeignKey('account.id', onupdate="RESTRICT", ondelete="RESTRICT"),
         nullable=True
     )
+    account = relationship('Account', backref='reports')
+
     state = sa.Column(
         sa.UnicodeText(),
         nullable=False
