@@ -98,6 +98,8 @@ class ReportTransactions(Base):
         return tuple([
             ExcludeConstraint(
                 ('balancesheet_id', '='), ('report_id', '='),
-                ('transaction_id_range', '&&')
+                ('transaction_id_range', '&&'),
+                name='ex_report_transaction_report_id_balancesheet_id_transaction_id_range',
+                where=not self.only_informational
             )
         ])
