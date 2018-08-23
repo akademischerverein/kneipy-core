@@ -92,14 +92,14 @@ class ReportTransactions(Base):
         'report.id',
         onupdate="RESTRICT",
         ondelete="RESTRICT"
-    ))
+    ), nullable=False)
     balancesheet_id = sa.Column(sa.ForeignKey(
         'balancesheet.id',
         onupdate="RESTRICT",
         ondelete="RESTRICT"
-    ))
+    ), nullable=False)
     transaction_id_range = sa.Column(NUMRANGE, nullable=False)
-    only_informational = sa.Column(sa.Boolean())
+    only_informational = sa.Column(sa.Boolean(), server_default=sa.text('False'), nullable=False)
 
     @declared_attr
     def __table_args__(self):
