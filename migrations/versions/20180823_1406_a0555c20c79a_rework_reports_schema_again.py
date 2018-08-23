@@ -80,3 +80,12 @@ def downgrade():
     op.create_foreign_key('fk_report_transactions_report_id_report', 'report_transactions', 'report', ['report_id'], ['id'], onupdate='RESTRICT', ondelete='RESTRICT')
     op.create_foreign_key('fk_report_account_id_account', 'report', 'account', ['account_id'], ['id'], onupdate='RESTRICT', ondelete='RESTRICT')
     op.create_foreign_key('fk_report_person_id_person', 'report', 'person', ['person_id'], ['id'], onupdate='RESTRICT', ondelete='RESTRICT')
+
+    op.create_check_constraint(
+        op.f('ck_report_account_or_person_null'),
+        'report',
+        '''
+        (person_id IS NULL) OR
+        (account_id IS NULL)
+        '''
+    )
