@@ -1,7 +1,7 @@
 import sqlalchemy as sa
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.dialects.postgresql import ExcludeConstraint
-from sqlalchemy.dialects.postgresql.ranges import NUMRANGE
+from sqlalchemy.dialects.postgresql.ranges import INT8RANGE
 from sqlalchemy.orm import relationship
 
 from kneipy_core.lib.sqlalchemy_uuid import GUID
@@ -146,7 +146,7 @@ class ReportTransactions(Base):
     ), nullable=False)
     balancesheet = relationship('BalanceSheet')
 
-    transaction_id_range = sa.Column(NUMRANGE, nullable=False)
+    transaction_id_range = sa.Column(INT8RANGE, nullable=False)
 
     only_informational = sa.Column(sa.Boolean(), server_default=sa.text('False'), nullable=False)
     failed = sa.Column(sa.Boolean(), nullable=False)
