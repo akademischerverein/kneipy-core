@@ -54,6 +54,18 @@ def upgrade():
     op.create_foreign_key('fk_batch_sequence_failed', 'report_transactions', 'report', ['batch_id', 'sequence_id', 'failed'], ['batch_id', 'sequence_id', 'failed'], onupdate='CASCADE', ondelete='RESTRICT')
     op.create_foreign_key(op.f('fk_report_transactions_batch_id_report_batch'), 'report_transactions', 'report_batch', ['batch_id'], ['id'], onupdate='RESTRICT', ondelete='RESTRICT')
 
+    op.create_exclude_constraint(
+        'ex_report_transactions_once_non_informational_per_sequence',
+        'report_transactions',
+        ('sequence_id', '='), ('balancesheet_id', '='), ('transaction_id_range', '&&'),
+        where='NOT only_informational AND NOT failed'
+    )
+    op.create_exclude_constraint(
+        'ex_report_transactions_once_per_report',
+        'report_transactions',
+        ('sequence_id', '='), ('batch_id', '='), ('balancesheet_id', '='), ('transaction_id_range', '&&')
+    )
+
 
 def downgrade():
     op.drop_constraint(op.f('fk_report_transactions_batch_id_report_batch'), 'report_transactions', type_='foreignkey')
