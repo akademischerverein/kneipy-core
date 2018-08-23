@@ -108,6 +108,6 @@ class ReportTransactions(Base):
                 ('balancesheet_id', '='), ('report_id', '='),
                 ('transaction_id_range', '&&'),
                 name='ex_report_transaction_report_id_balancesheet_id_transaction_id_range',
-                where=not self.only_informational
+                where=(~self.only_informational)
             )
         ])
