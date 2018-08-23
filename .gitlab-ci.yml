@@ -11,6 +11,16 @@ stages:
   - apt-get -qq update -y
   - apt-get -qq install -y postgresql-client-10 libpq5 libpq-dev
 
+.install-deps-stretch: &install-deps-stretch
+  image: debian:stretch
+  before_script:
+  - apt-get -qq update -y
+  - apt-get -qq install -y build-essential python3-pip python3-virtualenv python3-dev wget ca-certificates gnupg2
+  - wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
+  - echo "deb http://apt.postgresql.org/pub/repos/apt/ stretch-pgdg main" > /etc/apt/sources.list.d/pgdg.list
+  - apt-get -qq update -y
+  - apt-get -qq install -y postgresql-client-10 libpq5 libpq-dev
+
 .install-deps-buster: &install-deps-buster
   image: debian:buster
   before_script:
@@ -50,6 +60,12 @@ stages:
 
 test-jessie-pg10:
   <<: *install-deps-jessie
+  <<: *run-tests
+  <<: *using-pg10
+  stage: test
+
+test-stretch-pg10:
+  <<: *install-deps-stretch
   <<: *run-tests
   <<: *using-pg10
   stage: test
