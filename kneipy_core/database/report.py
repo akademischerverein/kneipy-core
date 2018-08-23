@@ -14,13 +14,13 @@ class Report(Base, ExternalRefMixin):
     __tablename__ = 'report'
     batch_id = sa.Column(
         sa.ForeignKey('report_batch.id', onupdate="RESTRICT", ondelete="RESTRICT"),
-        nullable=False, primary_key=True
+        nullable=False
     )
     batch = relationship('ReportBatch', backref='reports')
 
     sequence_id = sa.Column(
         sa.ForeignKey('report_sequence.id', onupdate="RESTRICT", ondelete="RESTRICT"),
-        nullable=False, primary_key=True
+        nullable=False
     )
     sequence = relationship('ReportSequence', backref='reports')
 
@@ -37,11 +37,19 @@ class Report(Base, ExternalRefMixin):
     @declared_attr
     def __table_args__(self):
         return tuple(ExternalRefMixin.table_args() + [
-            # needed for fk in report_transactions
+            sa.PrimaryKeyConstraint(
+                'sequence_id',
+                'batch_id'
+            ),
+            # Needed for fk in report_transactions.
+            # The order of batch_id and sequence_id is different
+            # than the PK, so queries for all reports for a sequence can use
+            # the PK and queries for all reports of a batch can use this.
             sa.UniqueConstraint(
                 'batch_id', 'sequence_id', 'failed',
                 name='uq_batch_sequence_failed'
-            )
+            ),
+
         ])
 
 
