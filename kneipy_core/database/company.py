@@ -1,6 +1,8 @@
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 
+from kneipy_core.lib.sqlalchemy_uuid import GUID
+
 from .base import Base
 from .mixins import ExternalRefMixin
 
@@ -9,18 +11,10 @@ class Company(Base, ExternalRefMixin):
     __tablename__ = 'company'
 
     id = sa.Column(
-        sa.BigInteger,
+        GUID,
         primary_key=True,
-        autoincrement=True
+        server_default=sa.text('gen_random_uuid()')
     )
-
-    # FIXME: Das hier benötigt PostgreSQL 10:
-    #
-    #id = sa.Column(
-    #    GUID,
-    #    primary_key=True,
-    #    server_default=sa.text('gen_random_uuid()')
-    #)
 
     name = sa.Column(
         sa.UnicodeText,

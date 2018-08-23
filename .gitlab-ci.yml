@@ -4,10 +4,22 @@ stages:
 .install-deps-jessie: &install-deps-jessie
   image: debian:jessie
   before_script:
-  - echo 'deb http://deb.debian.org/debian jessie-backports main' > /etc/apt/sources.list.d/backports.list
   - apt-get -qq update -y
-  - apt-get -qq install -t jessie-backports -y postgresql-client-9.6 libpq5 libpq-dev
-  - apt-get -qq install -y build-essential python3-pip python3-virtualenv python3-dev
+  - apt-get -qq install -y build-essential python3-pip python3-virtualenv python3-dev wget ca-certificates gnupg2
+  - wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
+  - echo "deb http://apt.postgresql.org/pub/repos/apt/ jessie-pgdg main" > /etc/apt/sources.list.d/pgdg.list
+  - apt-get -qq update -y
+  - apt-get -qq install -y postgresql-client-10 libpq5 libpq-dev
+
+.install-deps-stretch: &install-deps-stretch
+  image: debian:stretch
+  before_script:
+  - apt-get -qq update -y
+  - apt-get -qq install -y build-essential python3-pip python3-virtualenv python3-dev wget ca-certificates gnupg2
+  - wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
+  - echo "deb http://apt.postgresql.org/pub/repos/apt/ stretch-pgdg main" > /etc/apt/sources.list.d/pgdg.list
+  - apt-get -qq update -y
+  - apt-get -qq install -y postgresql-client-10 libpq5 libpq-dev
 
 .install-deps-buster: &install-deps-buster
   image: debian:buster
@@ -15,14 +27,6 @@ stages:
   - apt-get -qq update -y
   - apt-get -qq install -y postgresql-client-10 libpq5 libpq-dev
   - apt-get -qq install -y build-essential python3-pip python3-virtualenv python3-dev
-
-.using-pg9-5: &using-pg9-5
-  services:
-  - postgres:9.6
-
-.using-pg9-6: &using-pg9-6
-  services:
-  - postgres:9.6
 
 .using-pg10: &using-pg10
   services:
@@ -54,28 +58,16 @@ stages:
     paths:
       - .cache
 
-test-jessie-pg9.5:
+test-jessie-pg10:
   <<: *install-deps-jessie
   <<: *run-tests
-  <<: *using-pg9-5
+  <<: *using-pg10
   stage: test
 
-test-jessie-pg9.6:
-  <<: *install-deps-jessie
+test-stretch-pg10:
+  <<: *install-deps-stretch
   <<: *run-tests
-  <<: *using-pg9-6
-  stage: test
-
-test-buster-pg9.5:
-  <<: *install-deps-buster
-  <<: *run-tests
-  <<: *using-pg9-5
-  stage: test
-
-test-buster-pg9.6:
-  <<: *install-deps-buster
-  <<: *run-tests
-  <<: *using-pg9-6
+  <<: *using-pg10
   stage: test
 
 test-buster-pg10:
