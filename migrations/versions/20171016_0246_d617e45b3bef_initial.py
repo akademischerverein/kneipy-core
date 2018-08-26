@@ -13,7 +13,7 @@ from sqlalchemy import FetchedValue
 # revision identifiers, used by Alembic.
 revision = 'd617e45b3bef'
 down_revision = None
-branch_labels = None
+branch_labels = ('kneipy_core',)
 depends_on = None
 
 
