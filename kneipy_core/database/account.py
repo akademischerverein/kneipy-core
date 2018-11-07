@@ -92,6 +92,94 @@ def totals_and_balances_query(id_column):
     )
 
 
+def totals_and_balances_upto_query(id_column):
+    d_zero = sa.cast(0, SA_AMOUNT_TYPE)
+    return sa.select([
+        sa.type_coerce(
+            sa.func.coalesce(
+                sa.func.json_object_agg(
+                    sa.column('product_id'), sa.column('data')
+                ),
+                sa.func.json_build_object()
+            ),
+            TotalsAndBalancesPerProductType()
+        )
+    ]).select_from(
+        sa.select([
+            Product.id.label('product_id'),
+            sa.func.json_build_object(
+                sa.literal('product_name'),
+                sa.literal_column('Product.name'),
+                sa.literal('total_debit'),
+                sa.cast(
+                    sa.func.coalesce(sa.column('total_debit'), d_zero),
+                    sa.Text
+                ),
+                sa.literal('total_credit'),
+                sa.cast(
+                    sa.func.coalesce(sa.column('total_credit'), d_zero),
+                    sa.Text
+                ),
+                sa.literal('balance'),
+                sa.cast(
+                    sa.func.coalesce(sa.column('total_debit'), d_zero) -
+                    sa.func.coalesce(sa.column('total_credit'), d_zero),
+                    sa.Text
+                )
+            ).label('data')
+        ]).select_from(
+            sa.outerjoin(
+                # TODO: Product muss hier eigentlich nicht vorkommen
+                Product,
+                sa.select([
+                    Transaction.id.label('upto'),
+                    Transaction.debit_account_id.label('account_id'),
+                    Transaction.product_id.label('product_id'),
+                    sa.over(
+                        sa.func.sum(Transaction.amount),
+                        partition_by=Transaction.debit_account_id,
+                        order_by=Transaction.id
+                    ).label('upto_debit'),
+                ]).group_by(
+                    Transaction.id,
+                    Transaction.amount,
+                    Transaction.debit_account_id,
+                    Transaction.product_id
+                ).alias('upto_debit'),
+                sa.and_(
+                    sa.literal_column('upto_debit.product_id') == Product.id,
+                    sa.literal_column('upto_debit.Account_id') == id_column
+                )
+            ).outerjoin(
+                sa.select([
+                    Transaction.id.label('upto'),
+                    Transaction.credit_account_id.label('account_id'),
+                    Transaction.product_id.label('product_id'),
+                    sa.over(
+                        sa.func.sum(Transaction.amount),
+                        partition_by=Transaction.credit_account_id,
+                        order_by=Transaction.id
+                    ).label('upto_credit'),
+                ]).group_by(
+                    Transaction.id,
+                    Transaction.amount,
+                    Transaction.credit_account_id,
+                    Transaction.product_id
+                ).alias('total_credit'),
+                sa.and_(
+                    sa.literal_column('upto_credit.product_id') == Product.id,
+                    sa.literal_column('upto_credit.Account_id') == id_column
+                )
+            )
+        ).where(
+            sa.or_(
+                sa.column("total_debit").isnot(None),
+                sa.column("total_credit").isnot(None)
+            )
+        ).alias('totals_and_balances_per_product')
+    )
+
+
 @enum.unique
 class AccountTypes(enum.Enum):
     # ACHTUNG!
