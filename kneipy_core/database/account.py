@@ -16,6 +16,8 @@ from .mixins import ExternalRefMixin
 from .product import Product
 from .transaction import SA_AMOUNT_TYPE, \
     Transaction
+from .transactiongroup import TransactionGroup
+from .balancesheet import BalanceSheet
 
 
 def totals_and_balances_query(id_column):
@@ -263,3 +265,72 @@ class Account(Base, ExternalRefMixin):
                 name='uq_account_balancesheet_id_name'
             )
         ])
+
+
+def gen_account_cum_q(debit):
+    t1 = sa.alias(Transaction, "t1")
+    t2 = sa.alias(Transaction, "t2")
+    debit_c = t2.c.debit_account_id if debit else t2.c.credit_account_id
+    return sa.select([
+        t1.c.balancesheet_id,
+        t1.c.id.label("transaction_id"),
+        t1.c.product_id.label("product_id"),
+        debit_c.label("account_id"),
+        sa.func.sum(t2.c.amount).label("amount")
+    ]).select_from(
+        sa.join(t1, t2, sa.and_(
+            t1.c.balancesheet_id == t2.c.balancesheet_id,
+            t2.c.id <= t1.c.id
+        ))
+    ).group_by(
+        t1.c.balancesheet_id, t1.c.id, debit_c, t1.c.product_id
+    )
+
+class AccountCumCredit(Base):
+    __table__ = gen_account_cum_q(False).alias("account_cum_credit")
+    __mapper_args__ = {
+        'primary_key':[__table__.c.balancesheet_id, __table__.c.account_id, __table__.c.transaction_id,  __table__.c.product_id]
+    }
+
+    @property
+    def dict_key(self):
+        return (self.product_id, self.transaction_id)
+
+
+class AccountCumDebit(Base):
+    __table__ = gen_account_cum_q(True).alias("account_cum_debit")
+    __mapper_args__ = {
+        'primary_key':[__table__.c.balancesheet_id, __table__.c.account_id, __table__.c.transaction_id,  __table__.c.product_id]
+    }
+
+    @property
+    def dict_key(self):
+        return (self.product_id, self.transaction_id)
+
+
+Account.cum_credit = relationship(
+    "AccountCumCredit",
+    primaryjoin=(
+        "and_(" +
+        "    Account.id == AccountCumCredit.account_id," +
+        "    Account.balancesheet_id == AccountCumCredit.balancesheet_id" +
+        ")"
+    ),
+    foreign_keys=[Account.balancesheet_id, Account.id],
+    uselist=True,
+    collection_class=sa.orm.collections.attribute_mapped_collection("dict_key"),
+    viewonly=True
+)
+Account.cum_debit = relationship(
+    "AccountCumDebit",
+    primaryjoin=(
+        "and_(" +
+        "    Account.id == AccountCumDebit.account_id," +
+        "    Account.balancesheet_id == AccountCumDebit.balancesheet_id" +
+        ")"
+    ),
+    foreign_keys=[Account.balancesheet_id, Account.id],
+    uselist=True,
+    collection_class=sa.orm.collections.attribute_mapped_collection("dict_key"),
+    viewonly=True
+)

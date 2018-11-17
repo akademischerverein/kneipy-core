@@ -25,12 +25,16 @@ stages:
   image: debian:buster
   before_script:
   - apt-get -qq update -y
-  - apt-get -qq install -y postgresql-client-10 libpq5 libpq-dev
+  - apt-get -qq install -y postgresql-client-11 libpq5 libpq-dev
   - apt-get -qq install -y build-essential python3-pip python3-virtualenv python3-dev
 
 .using-pg10: &using-pg10
   services:
   - postgres:10
+
+.using-pg11: &using-pg11
+  services:
+  - postgres:11
 
 .run-tests: &run-tests
   script:
@@ -75,6 +79,9 @@ test-buster-pg10:
   <<: *run-tests
   <<: *using-pg10
   stage: test
-  services:
-  - postgres:10
 
+test-buster-pg11:
+  <<: *install-deps-buster
+  <<: *run-tests
+  <<: *using-pg11
+  stage: test

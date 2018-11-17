@@ -4,7 +4,7 @@ from sqlalchemy.orm.scoping import scoped_session
 
 from .base import Base
 from .person import Person
-from .account import Account, AccountTypes
+from .account import Account, AccountTypes, AccountCumCredit, AccountCumDebit
 from .company import Company
 from .product import Product
 from .report import Report, ReportBatch, ReportSequence, ReportTransactions
@@ -39,6 +39,7 @@ def alembic_include_object(o, name, type_, reflected, compare_to):
 __all__ = [
     'Base', 'Session', 'engine', 'connect',
     'Person', 'Account', 'AccountTypes',
+    'AccountCumCredit', 'AccountCumDebit',
     'AccountBalanceSheet',
     'Product', 'BalanceSheet',
     'Transaction', 'TransactionGroup'
