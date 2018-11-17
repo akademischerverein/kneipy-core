@@ -1,6 +1,6 @@
 import collections
-
 import enum
+
 import sqlalchemy as sa
 from kneipy_core.lib.sqlalchemy_uuid import GUID
 from sqlalchemy.dialects.postgresql import ENUM
