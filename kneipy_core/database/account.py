@@ -255,7 +255,7 @@ class Account(Base, ExternalRefMixin):
         return res
 
     @classmethod
-    def add_cum_amounts(cls, q, transaction_id):
+    def add_cum_amount_loads(cls, q, transaction_id):
         return q.outerjoin((
             AccountCumCredit,
             sa.and_(
