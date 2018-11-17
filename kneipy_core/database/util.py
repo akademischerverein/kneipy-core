@@ -1,11 +1,12 @@
-import uuid
-import decimal
 import collections
+import decimal
+import uuid
 
 import attr
 import sqlalchemy as sa
 from sqlalchemy.orm.session import make_transient_to_detached
 from sqlalchemy.orm.util import identity_key
+
 from .product import Product
 
 
