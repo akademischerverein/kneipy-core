@@ -1,23 +1,20 @@
+import collections
 import enum
 
 import sqlalchemy as sa
-from sqlalchemy.orm import relationship
-from sqlalchemy.ext.declarative import \
-    declared_attr
-from sqlalchemy.dialects.postgresql import ENUM
-
 from kneipy_core.lib.sqlalchemy_uuid import GUID
+from sqlalchemy.dialects.postgresql import ENUM
+from sqlalchemy.ext.declarative import declared_attr
+from sqlalchemy.orm import relationship
 
+from .balancesheet import BalanceSheet
 from .base import Base
-from .util import TotalsAndBalancePerProduct, \
-    TotalsAndBalancesPerProductType, \
-    add_totals_and_balance
 from .mixins import ExternalRefMixin
 from .product import Product
-from .transaction import SA_AMOUNT_TYPE, \
-    Transaction
+from .transaction import SA_AMOUNT_TYPE, Transaction
 from .transactiongroup import TransactionGroup
-from .balancesheet import BalanceSheet
+from .util import (TotalsAndBalance, TotalsAndBalancePerProduct,
+                   TotalsAndBalancesPerProductType, add_totals_and_balance)
 
 
 def totals_and_balances_query(id_column):
@@ -184,6 +181,40 @@ class Account(Base, ExternalRefMixin):
     )
 
     @property
+    def transaction_totals(self):
+        if hasattr(self, '_transaction_totals'):
+            return self._transaction_totals
+
+        result = collections.defaultdict(TotalsAndBalancePerProduct)
+
+        for v in self.cum_debit.values():
+            prev = result[v.transaction_id][v.product_id]
+            result[v.transaction_id][v.product_id] = TotalsAndBalance(
+                product_id=v.product_id,
+                total_credit=0, total_debit=prev.total_debit + v.amount,
+                balance=prev.total_debit + v.amount
+            )
+
+        for v in self.cum_credit.values():
+            prev = result[v.transaction_id][v.product_id]
+            result[v.transaction_id][v.product_id] = TotalsAndBalance(
+                product_id=v.product_id,
+                total_credit=prev.total_credit + v.amount, total_debit=prev.total_debit,
+                balance=prev.total_debit - v.amount
+            )
+
+        self._transaction_totals = result
+        return result
+
+    @property
+    def transaction_totals_one(self):
+        assert len(self.transaction_totals) <= 1
+        if len(self.transaction_totals) == 1:
+            return list(self.transaction_totals.values())[0]
+        else:
+            return TotalsAndBalancePerProduct()
+
+    @property
     def cumulative_totals_and_balance(self):
         res = TotalsAndBalancePerProduct()
         # 10 Ebenen des Konten-Baumes laden mit einem Query pro Ebene
@@ -222,6 +253,27 @@ class Account(Base, ExternalRefMixin):
                     res[product_id], data
                 )
         return res
+
+    @classmethod
+    def add_cum_amount_loads(cls, q, transaction_id):
+        return q.outerjoin((
+            AccountCumCredit,
+            sa.and_(
+                AccountCumCredit.account_id == Account.id,
+                AccountCumCredit.balancesheet_id == Account.balancesheet_id,
+                AccountCumCredit.transaction_id == transaction_id
+            ),
+        )).outerjoin((
+            AccountCumDebit,
+            sa.and_(
+                AccountCumDebit.account_id == Account.id,
+                AccountCumDebit.balancesheet_id == Account.balancesheet_id,
+                AccountCumDebit.transaction_id == transaction_id
+            ),
+        )).options(
+            sa.orm.contains_eager('cum_credit'),
+            sa.orm.contains_eager('cum_debit')
+        )
 
     # NOT NULL / IS NULL prüfen abhängig von der type Spalte
     #
@@ -286,6 +338,7 @@ def gen_account_cum_q(debit):
         t1.c.balancesheet_id, t1.c.id, debit_c, t1.c.product_id
     )
 
+
 class AccountCumCredit(Base):
     __table__ = gen_account_cum_q(False).alias("account_cum_credit")
     __mapper_args__ = {
@@ -319,7 +372,8 @@ Account.cum_credit = relationship(
     foreign_keys=[Account.balancesheet_id, Account.id],
     uselist=True,
     collection_class=sa.orm.collections.attribute_mapped_collection("dict_key"),
-    viewonly=True
+    viewonly=True,
+    lazy='raise_on_sql'
 )
 Account.cum_debit = relationship(
     "AccountCumDebit",
@@ -332,5 +386,6 @@ Account.cum_debit = relationship(
     foreign_keys=[Account.balancesheet_id, Account.id],
     uselist=True,
     collection_class=sa.orm.collections.attribute_mapped_collection("dict_key"),
-    viewonly=True
+    viewonly=True,
+    lazy='raise_on_sql'
 )
