@@ -4,7 +4,7 @@ from sqlalchemy.orm.scoping import scoped_session
 
 from .base import Base
 from .person import Person
-from .account import Account, AccountTypes, AccountCumCredit, AccountCumDebit
+from .account import Account, AccountTypes
 from .company import Company
 from .product import Product
 from .report import Report, ReportBatch, ReportSequence, ReportTransactions
