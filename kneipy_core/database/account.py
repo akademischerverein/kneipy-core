@@ -255,20 +255,22 @@ class Account(Base, ExternalRefMixin):
         return res
 
     @classmethod
-    def add_cum_amount_loads(cls, q, transaction_id):
+    def add_cum_amount_loads(cls, q, transaction_ids):
+        if not isinstance(transaction_ids, collections.Iterable):
+            transaction_ids = [transaction_ids]
         return q.outerjoin((
             AccountCumCredit,
             sa.and_(
                 AccountCumCredit.account_id == Account.id,
                 AccountCumCredit.balancesheet_id == Account.balancesheet_id,
-                AccountCumCredit.transaction_id == transaction_id
+                AccountCumCredit.transaction_id.in_(transaction_ids)
             ),
         )).outerjoin((
             AccountCumDebit,
             sa.and_(
                 AccountCumDebit.account_id == Account.id,
                 AccountCumDebit.balancesheet_id == Account.balancesheet_id,
-                AccountCumDebit.transaction_id == transaction_id
+                AccountCumDebit.transaction_id.in_(transaction_ids)
             ),
         )).options(
             sa.orm.contains_eager('cum_credit'),
