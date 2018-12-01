@@ -51,11 +51,7 @@ class TransactionInterfaceCore():
         })
 
     def tab_orm_invalidate(self, account):
-        instance_state = sa.inspect(account)
-        if 'totals_and_balance' not in instance_state.unloaded:
-            self.session.expire(
-                account, ['totals_and_balance']
-            )
+        account._invalidate_totals_and_balance_attrs()
 
     def insert(self):
         transaktion_t = Transaction.__table__

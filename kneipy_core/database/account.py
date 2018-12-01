@@ -14,81 +14,10 @@ from .product import Product
 from .transaction import SA_AMOUNT_TYPE, Transaction
 from .transactiongroup import TransactionGroup
 from .util import (TotalsAndBalance, TotalsAndBalancePerProduct,
-                   TotalsAndBalancesPerProductType, add_totals_and_balance)
+                   TotalsAndBalancesPerProductType)
 
-
-def totals_and_balances_query(id_column):
-    d_zero = sa.cast(0, SA_AMOUNT_TYPE)
-    return sa.select([
-        sa.type_coerce(
-            sa.func.coalesce(
-                sa.func.json_object_agg(
-                    sa.column('product_id'), sa.column('data')
-                ),
-                sa.func.json_build_object()
-            ),
-            TotalsAndBalancesPerProductType()
-        )
-    ]).select_from(
-        sa.select([
-            Product.id.label('product_id'),
-            sa.func.json_build_object(
-                sa.literal('product_name'),
-                sa.literal_column('Product.name'),
-                sa.literal('total_debit'),
-                sa.cast(
-                    sa.func.coalesce(sa.column('total_debit'), d_zero),
-                    sa.Text
-                ),
-                sa.literal('total_credit'),
-                sa.cast(
-                    sa.func.coalesce(sa.column('total_credit'), d_zero),
-                    sa.Text
-                ),
-                sa.literal('balance'),
-                sa.cast(
-                    sa.func.coalesce(sa.column('total_debit'), d_zero) -
-                    sa.func.coalesce(sa.column('total_credit'), d_zero),
-                    sa.Text
-                )
-            ).label('data')
-        ]).select_from(
-            sa.outerjoin(
-                # TODO: Product muss hier eigentlich nicht vorkommen
-                Product,
-                sa.select([
-                    Transaction.debit_account_id.label('account_id'),
-                    Transaction.product_id.label('product_id'),
-                    sa.func.sum(Transaction.amount).label('total_debit'),
-                ]).group_by(
-                    Transaction.debit_account_id,
-                    Transaction.product_id
-                ).alias('total_debit'),
-                sa.and_(
-                    sa.literal_column('total_debit.product_id') == Product.id,
-                    sa.literal_column('total_debit.Account_id') == id_column
-                )
-            ).outerjoin(
-                sa.select([
-                    Transaction.credit_account_id.label('account_id'),
-                    Transaction.product_id.label('product_id'),
-                    sa.func.sum(Transaction.amount).label('total_credit'),
-                ]).group_by(
-                    Transaction.credit_account_id,
-                    Transaction.product_id
-                ).alias('total_credit'),
-                sa.and_(
-                    sa.literal_column('total_credit.product_id') == Product.id,
-                    sa.literal_column('total_credit.Account_id') == id_column
-                )
-            )
-        ).where(
-            sa.or_(
-                sa.column("total_debit").isnot(None),
-                sa.column("total_credit").isnot(None)
-            )
-        ).alias('totals_and_balances_per_product')
-    )
+# key in session.info dict for information about totals and balances
+INFO_CUM_AMOUNTS = 'kneipy_core.AccountCumAmounts'
 
 
 @enum.unique
@@ -174,108 +103,156 @@ class Account(Base, ExternalRefMixin):
         back_populates='parent'
     )
 
-    totals_and_balance = sa.orm.column_property(
-        totals_and_balances_query(
-            id  # Account.id
-        ), deferred=True
-    )
+    @property
+    def totals_and_balances(self):
+        if not hasattr(self, '_totals_and_balances'):
+            # Cannot be a defaultdict! If it were we'd get zero totals
+            # and balances if they're not loaded.
+            result = dict()
+            try:
+                cum_amounts = sa.orm.session.object_session(self).info[INFO_CUM_AMOUNTS][self.id]
+            except KeyError:
+                return result
+
+            for trx_id, rows in cum_amounts.items():
+                result[trx_id] = TotalsAndBalancePerProduct()
+                for row in rows.values():
+                    result[trx_id][row.product_id] = result[trx_id][row.product_id].add(row)
+            self._totals_and_balances = result
+
+        return self._totals_and_balances
 
     @property
-    def transaction_totals(self):
-        if hasattr(self, '_transaction_totals'):
-            return self._transaction_totals
-
-        result = collections.defaultdict(TotalsAndBalancePerProduct)
-
-        for v in self.cum_debit.values():
-            prev = result[v.transaction_id][v.product_id]
-            result[v.transaction_id][v.product_id] = TotalsAndBalance(
-                product_id=v.product_id,
-                total_credit=0, total_debit=prev.total_debit + v.amount,
-                balance=prev.total_debit + v.amount
-            )
-
-        for v in self.cum_credit.values():
-            prev = result[v.transaction_id][v.product_id]
-            result[v.transaction_id][v.product_id] = TotalsAndBalance(
-                product_id=v.product_id,
-                total_credit=prev.total_credit + v.amount, total_debit=prev.total_debit,
-                balance=prev.total_debit - v.amount
-            )
-
-        self._transaction_totals = result
-        return result
-
-    @property
-    def transaction_totals_one(self):
-        assert len(self.transaction_totals) <= 1
-        if len(self.transaction_totals) == 1:
-            return list(self.transaction_totals.values())[0]
+    def totals_and_balance(self):
+        if len(self.totals_and_balances) == 1:
+            return list(self.totals_and_balances.values())[0]
         else:
-            return TotalsAndBalancePerProduct()
+            raise ValueError("totals and balances for exactly one transaction id need to be loaded")
+
+    @property
+    def cumulative_totals_and_balances(self):
+        if not hasattr(self, '_cumulative_totals_and_balances'):
+            # for what transaction ids do we know balances for this account
+            # and all children?
+            transaction_ids = set(self.totals_and_balances.keys())
+            for child in self.children:
+                transaction_ids.intersection_update(child.cumulative_totals_and_balances.keys())
+
+            res = dict()
+            for trx_id in transaction_ids:
+                res[trx_id] = TotalsAndBalancePerProduct()
+                for child in self.children:
+                    ctab = child.cumulative_totals_and_balances[trx_id]
+                    for product_id, data in ctab.items():
+                        res[trx_id][product_id] = res[trx_id][product_id].add(
+                            data
+                        )
+                for product_id, data in self.totals_and_balances[trx_id].items():
+                    res[trx_id][product_id] = res[trx_id][product_id].add(
+                        data
+                    )
+            self._cumulative_totals_and_balances = res
+        return self._cumulative_totals_and_balances
 
     @property
     def cumulative_totals_and_balance(self):
-        res = TotalsAndBalancePerProduct()
-        # 10 Ebenen des Konten-Baumes laden mit einem Query pro Ebene
-        # Kostet leider einen zusätzlich, da die aktuelle Instanz
-        # erneut geladen wird
-        instance_state = sa.inspect(self)
-        lazy_fields = 'children totals_and_balance'.split()
-        if any(f in instance_state.unloaded for f in lazy_fields):
-            # eager load 10 Ebenen, inkl. der Summen und Salden
-            query_options = sa.orm
-            if 'totals_and_balance' in instance_state.unloaded:
-                query_options = query_options.undefer('totals_and_balance')
-            for _ in range(10):
-                query_options = query_options \
-                    .selectinload('children')\
-                    .undefer('totals_and_balance')
+        if len(self.cumulative_totals_and_balances) == 1:
+            return list(self.cumulative_totals_and_balances.values())[0]
+        else:
+            raise ValueError("totals and balances for exactly one transaction id need to be loaded")
 
-            instance_state.session.query(self.__class__) \
-                .options(query_options) \
-                .filter_by(id=self.id).all()
-
-        for child in self.children:
-            ctab = child.cumulative_totals_and_balance
-            for product_id, data in ctab.items():
-                if product_id not in res:
-                    res[product_id] = data
-                else:
-                    res[product_id] = add_totals_and_balance(
-                        res[product_id], data
-                    )
-        for product_id, data in self.totals_and_balance.items():
-            if product_id not in res:
-                res[product_id] = data
-            else:
-                res[product_id] = add_totals_and_balance(
-                    res[product_id], data
-                )
-        return res
+    def _invalidate_totals_and_balance_attrs(self):
+        if hasattr(self, '_totals_and_balances'):
+            del self._totals_and_balances
+        if hasattr(self, '_cumulative_totals_and_balances'):
+            del self._cumulative_totals_and_balances
 
     @classmethod
-    def add_cum_amount_loads(cls, q, transaction_ids):
-        if not isinstance(transaction_ids, collections.Iterable):
+    def load_totals_and_balances(cls, accounts, transaction_ids):
+        if isinstance(transaction_ids, int):
             transaction_ids = [transaction_ids]
-        return q.outerjoin((
-            AccountCumCredit,
-            sa.and_(
-                AccountCumCredit.account_id == Account.id,
-                AccountCumCredit.balancesheet_id == Account.balancesheet_id,
-                AccountCumCredit.transaction_id.in_(transaction_ids)
-            ),
-        )).outerjoin((
-            AccountCumDebit,
-            sa.and_(
-                AccountCumDebit.account_id == Account.id,
-                AccountCumDebit.balancesheet_id == Account.balancesheet_id,
-                AccountCumDebit.transaction_id.in_(transaction_ids)
-            ),
-        )).options(
-            sa.orm.contains_eager('cum_credit'),
-            sa.orm.contains_eager('cum_debit')
-        )
+        if not accounts or not transaction_ids:
+            return
+        if not isinstance(accounts, list):
+            accounts = list(accounts)
+
+        session = sa.orm.session.object_session(accounts[0])
+        if INFO_CUM_AMOUNTS not in session.info:
+            # cache comulative amounts of accounts
+            session.info[INFO_CUM_AMOUNTS] = dict()
+
+            # clear cache
+            @sa.event.listens_for(session, "after_commit")
+            @sa.event.listens_for(session, "after_rollback")
+            def remove_strong_refs(session, *args, **kwargs):
+                session.info[INFO_CUM_AMOUNTS] = dict()
+
+        # Query for accounts of different balancesheets seperately.
+        # Not doing this will likely result in a suboptimal query plan.
+        # Also query in chunks of 500 accounts to account for limitations
+        # of the IN sql-construct
+        accounts_by_balancesheets = collections.defaultdict(lambda: set())
+        for a in accounts:
+            accounts_by_balancesheets[a.balancesheet_id].add(a)
+        chunks = []
+        for accounts_one_balancesheet in accounts_by_balancesheets.values():
+            while len(accounts_one_balancesheet) > 500:
+                chunks.append([])
+                for _ in range(500):
+                    chunks[-1].append(accounts_one_balancesheet.pop())
+            chunks.append([])
+            while accounts_one_balancesheet:
+                chunks[-1].append(accounts_one_balancesheet.pop())
+
+        for c in chunks:
+            assert c
+            # Create dicts in session.info[INFO_CUM_AMOUNTS] as needed. The
+            # existence of these dictonaries also signals what's been
+            # queried since an account with no transactions will not result
+            # in a row in the queries below.
+            for a in c:
+                if a.id not in session.info[INFO_CUM_AMOUNTS]:
+                    session.info[INFO_CUM_AMOUNTS][a.id] = dict()
+                for trx_id in transaction_ids:
+                    if trx_id not in session.info[INFO_CUM_AMOUNTS][a.id]:
+                        session.info[INFO_CUM_AMOUNTS][a.id][trx_id] = dict()
+
+            for t in ["credit", "debit"]:
+                q = gen_account_cum_q(t).alias("account_cum_" + t)
+                q = sa.select([
+                    q.c.balancesheet_id, q.c.transaction_id, q.c.product_id,
+                    q.c.account_id, q.c.total_debit, q.c.total_credit, q.c.what
+                ]).where(
+                    sa.and_(
+                        q.c.balancesheet_id == c[0].balancesheet_id,
+                        q.c.account_id.in_([a.id for a in c]),
+                        q.c.transaction_id.in_(transaction_ids)
+                    )
+                )
+                for r in session.execute(q):
+                    session.info[INFO_CUM_AMOUNTS][r.account_id] \
+                        [r.transaction_id][(r.product_id, r.what)] = TotalsAndBalance(
+                            product_id=r.product_id,
+                            total_credit=r.total_credit, total_debit=r.total_debit,
+                            balance=r.total_debit - r.total_credit
+                        )
+        for a in accounts:
+            a._invalidate_totals_and_balance_attrs()
+
+    @classmethod
+    def load_cumulative_totals_and_balances(cls, accounts, transaction_ids):
+        accounts_to_check = set(accounts)
+        accounts_including_children = set()
+        while accounts_to_check:
+            account = accounts_to_check.pop()
+            if account in accounts_including_children:
+                continue
+            for c in account.children:
+                accounts_to_check.add(c)
+            accounts_including_children.add(account)
+
+        return cls.load_totals_and_balances(accounts_including_children, transaction_ids)
+
 
     # NOT NULL / IS NULL prüfen abhängig von der type Spalte
     #
@@ -321,73 +298,24 @@ class Account(Base, ExternalRefMixin):
         ])
 
 
-def gen_account_cum_q(debit):
+def gen_account_cum_q(what):
+    assert what in ["debit", "credit"]
     t1 = sa.alias(Transaction, "t1")
     t2 = sa.alias(Transaction, "t2")
-    debit_c = t2.c.debit_account_id if debit else t2.c.credit_account_id
+    account_c = t2.c.debit_account_id if what == "debit" else t2.c.credit_account_id
     return sa.select([
         t1.c.balancesheet_id,
         t1.c.id.label("transaction_id"),
-        t1.c.product_id.label("product_id"),
-        debit_c.label("account_id"),
-        sa.func.sum(t2.c.amount).label("amount")
+        t2.c.product_id.label("product_id"),
+        account_c.label("account_id"),
+        sa.func.sum(t2.c.amount).label("total_" + what),
+        sa.literal(0).label("total_" + ("debit" if what == "credit" else "credit")),
+        sa.literal('"{}"'.format(what)).label("what")
     ]).select_from(
         sa.join(t1, t2, sa.and_(
             t1.c.balancesheet_id == t2.c.balancesheet_id,
             t2.c.id <= t1.c.id
         ))
     ).group_by(
-        t1.c.balancesheet_id, t1.c.id, debit_c, t1.c.product_id
+        t1.c.balancesheet_id, t1.c.id, account_c, t2.c.product_id
     )
-
-
-class AccountCumCredit(Base):
-    __table__ = gen_account_cum_q(False).alias("account_cum_credit")
-    __mapper_args__ = {
-        'primary_key':[__table__.c.balancesheet_id, __table__.c.account_id, __table__.c.transaction_id,  __table__.c.product_id]
-    }
-
-    @property
-    def dict_key(self):
-        return (self.product_id, self.transaction_id)
-
-
-class AccountCumDebit(Base):
-    __table__ = gen_account_cum_q(True).alias("account_cum_debit")
-    __mapper_args__ = {
-        'primary_key':[__table__.c.balancesheet_id, __table__.c.account_id, __table__.c.transaction_id,  __table__.c.product_id]
-    }
-
-    @property
-    def dict_key(self):
-        return (self.product_id, self.transaction_id)
-
-
-Account.cum_credit = relationship(
-    "AccountCumCredit",
-    primaryjoin=(
-        "and_(" +
-        "    Account.id == AccountCumCredit.account_id," +
-        "    Account.balancesheet_id == AccountCumCredit.balancesheet_id" +
-        ")"
-    ),
-    foreign_keys=[Account.balancesheet_id, Account.id],
-    uselist=True,
-    collection_class=sa.orm.collections.attribute_mapped_collection("dict_key"),
-    viewonly=True,
-    lazy='raise_on_sql'
-)
-Account.cum_debit = relationship(
-    "AccountCumDebit",
-    primaryjoin=(
-        "and_(" +
-        "    Account.id == AccountCumDebit.account_id," +
-        "    Account.balancesheet_id == AccountCumDebit.balancesheet_id" +
-        ")"
-    ),
-    foreign_keys=[Account.balancesheet_id, Account.id],
-    uselist=True,
-    collection_class=sa.orm.collections.attribute_mapped_collection("dict_key"),
-    viewonly=True,
-    lazy='raise_on_sql'
-)

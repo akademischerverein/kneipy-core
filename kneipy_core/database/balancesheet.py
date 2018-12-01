@@ -8,7 +8,6 @@ from sqlalchemy.dialects.postgresql import DATERANGE, \
 from kneipy_core.lib.sqlalchemy_uuid import GUID
 
 from .base import Base
-from .util import add_totals_and_balance
 
 
 class BalanceSheet(Base):
@@ -65,37 +64,6 @@ class BalanceSheet(Base):
             name='ex_balancesheet_company_id_daterange'
         ),
     )
-
-    @property
-    def cumulative_totals_and_balance(self):
-        res = {}
-        # 10 Ebenen des Konten-Baumes laden mit einem Query pro Ebene
-        # Kostet leider einen zusätzlich, da die aktuelle Instanz
-        # erneut geladen wird
-        instance_state = sa.inspect(self)
-        if 'top_level_accounts' in instance_state.unloaded:
-            # eager load 10 Ebenen, inkl. der Summen und Salden
-            query_options = sa.orm.selectinload('top_level_accounts')
-            query_options = query_options.undefer('totals_and_balance')
-            for _ in range(10):
-                query_options = query_options \
-                    .selectinload('children')\
-                    .undefer('totals_and_balance')
-
-            instance_state.session.query(self.__class__) \
-                .options(query_options) \
-                .filter_by(id=self.id).all()
-
-        for account in self.top_level_accounts:
-            ctab = account.cumulative_totals_and_balance
-            for product_id, data in ctab.items():
-                if product_id not in res:
-                    res[product_id] = data
-                else:
-                    res[product_id] = add_totals_and_balance(
-                        res[product_id], data
-                    )
-        return res
 
     @contextmanager
     def transact_orm(self, text, receiptdate, receipt):
