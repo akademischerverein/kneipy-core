@@ -1,6 +1,6 @@
 import collections
-import enum
 
+import enum
 import sqlalchemy as sa
 from kneipy_core.lib.sqlalchemy_uuid import GUID
 from sqlalchemy.dialects.postgresql import ENUM
@@ -13,8 +13,7 @@ from .mixins import ExternalRefMixin
 from .product import Product
 from .transaction import SA_AMOUNT_TYPE, Transaction
 from .transactiongroup import TransactionGroup
-from .util import (TotalsAndBalance, TotalsAndBalancePerProduct,
-                   TotalsAndBalancesPerProductType)
+from .util import TotalsAndBalance, TotalsAndBalancePerProduct
 
 # key in session.info dict for information about totals and balances
 INFO_CUM_AMOUNTS = 'kneipy_core.AccountCumAmounts'
