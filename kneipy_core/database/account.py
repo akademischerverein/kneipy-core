@@ -144,11 +144,11 @@ class Account(Base, ExternalRefMixin):
                 for child in self.children:
                     ctab = child.cumulative_totals_and_balances[trx_id]
                     for product_id, data in ctab.items():
-                        res[product_id] = res[product_id].add(
+                        res[trx_id][product_id] = res[trx_id][product_id].add(
                             data
                         )
                 for product_id, data in self.totals_and_balances[trx_id].items():
-                    res[product_id] = res[product_id].add(
+                    res[trx_id][product_id] = res[trx_id][product_id].add(
                         data
                     )
             self._cumulative_totals_and_balances = res
@@ -173,6 +173,8 @@ class Account(Base, ExternalRefMixin):
             transaction_ids = [transaction_ids]
         if not accounts or not transaction_ids:
             return
+        if not isinstance(accounts, list):
+            accounts = list(accounts)
 
         session = sa.orm.session.object_session(accounts[0])
         if INFO_CUM_AMOUNTS not in session.info:
@@ -193,14 +195,14 @@ class Account(Base, ExternalRefMixin):
         for a in accounts:
             accounts_by_balancesheets[a.balancesheet_id].add(a)
         chunks = []
-        for accounts in accounts_by_balancesheets.values():
-            while len(accounts) > 500:
+        for accounts_one_balancesheet in accounts_by_balancesheets.values():
+            while len(accounts_one_balancesheet) > 500:
                 chunks.append([])
                 for _ in range(500):
-                    chunks[-1].append(accounts.pop())
+                    chunks[-1].append(accounts_one_balancesheet.pop())
             chunks.append([])
-            while accounts:
-                chunks[-1].append(accounts.pop())
+            while accounts_one_balancesheet:
+                chunks[-1].append(accounts_one_balancesheet.pop())
 
         for c in chunks:
             assert c
@@ -234,7 +236,6 @@ class Account(Base, ExternalRefMixin):
                             total_credit=r.total_credit, total_debit=r.total_debit,
                             balance=r.total_debit - r.total_credit
                         )
-
         for a in accounts:
             a._invalidate_totals_and_balance_attrs()
 
@@ -305,7 +306,7 @@ def gen_account_cum_q(what):
     return sa.select([
         t1.c.balancesheet_id,
         t1.c.id.label("transaction_id"),
-        t1.c.product_id.label("product_id"),
+        t2.c.product_id.label("product_id"),
         account_c.label("account_id"),
         sa.func.sum(t2.c.amount).label("total_" + what),
         sa.literal(0).label("total_" + ("debit" if what == "credit" else "credit")),
@@ -316,5 +317,5 @@ def gen_account_cum_q(what):
             t2.c.id <= t1.c.id
         ))
     ).group_by(
-        t1.c.balancesheet_id, t1.c.id, account_c, t1.c.product_id
+        t1.c.balancesheet_id, t1.c.id, account_c, t2.c.product_id
     )
