@@ -77,10 +77,6 @@ class TotalsAndBalancePerProduct(collections.UserDict):
         )
 
 
-def add_totals_and_balance(a, b):
-    return a.add(b)
-
-
 class TotalsAndBalancesPerProductType(sa.types.TypeDecorator):
     impl = sa.types.JSON
 

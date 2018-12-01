@@ -99,15 +99,17 @@ class ApiTest(test_util.DbTestCase):
 
     def test_eagerload(self):
         self.create_simple_balance_sheet()
-        balances = self.session.query(Account) \
+        account = self.session.query(Account) \
             .options(
-                sa.orm.undefer('totals_and_balance')
-            ) \
-            .filter_by(
+                sa.orm.joinedload(Account.balancesheet)
+            ).filter_by(
                 type=AccountTypes.Capital,
                 name='Balances') \
             .one()
-        n.eq_(balances, self.accounts['balances'])
+        Accounts.load_cumulative_totals_and_balances(
+            [account], account.balancesheet.transaction_id_seq
+        )
+        n.eq_(account, self.accounts['balances'])
         n.eq_(balances.cumulative_totals_and_balance
               [Product.get_currency_uuid('EUR')].balance, 0)
 
@@ -123,8 +125,8 @@ class ApiTest(test_util.DbTestCase):
         n.eq_(profits.cumulative_totals_and_balance
               [Product.get_currency_uuid('EUR')].balance, 0)
         n.ok_(isinstance(
-            profits.cumulative_totals_and_balance[Product.get_currency_uuid('EUR')].balance,
-            decimal.Decimal
+            profits.cumulative_totals_and_balance
+            [Product.get_currency_uuid('EUR')].balance, decimal.Decimal
         ))
 
     def assert_balancesheet_invariants(self, balancesheet):

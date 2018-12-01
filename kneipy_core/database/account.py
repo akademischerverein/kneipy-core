@@ -14,7 +14,7 @@ from .product import Product
 from .transaction import SA_AMOUNT_TYPE, Transaction
 from .transactiongroup import TransactionGroup
 from .util import (TotalsAndBalance, TotalsAndBalancePerProduct,
-                   TotalsAndBalancesPerProductType, add_totals_and_balance)
+                   TotalsAndBalancesPerProductType)
 
 # key in session.info dict for information about totals and balances
 INFO_CUM_AMOUNTS = 'kneipy_core.AccountCumAmounts'
@@ -104,8 +104,8 @@ class Account(Base, ExternalRefMixin):
     )
 
     @property
-    def transaction_totals(self):
-        if not hasattr(self, '_transaction_totals'):
+    def totals_and_balances(self):
+        if not hasattr(self, '_totals_and_balances'):
             # Cannot be a defaultdict! If it were we'd get zero totals
             # and balances if they're not loaded.
             result = dict()
@@ -118,16 +118,54 @@ class Account(Base, ExternalRefMixin):
                 result[trx_id] = TotalsAndBalancePerProduct()
                 for row in rows.values():
                     result[trx_id][row.product_id] = result[trx_id][row.product_id].add(row)
-            self._transaction_totals = result
+            self._totals_and_balances = result
 
-        return self._transaction_totals
+        return self._totals_and_balances
 
     @property
-    def transaction_totals_one(self):
-        if len(self.transaction_totals) == 1:
-            return list(self.transaction_totals.values())[0]
+    def totals_and_balance(self):
+        if len(self.totals_and_balances) == 1:
+            return list(self.totals_and_balances.values())[0]
         else:
             raise ValueError("totals and balances for exactly one transaction id need to be loaded")
+
+    @property
+    def cumulative_totals_and_balances(self):
+        if not hasattr(self, '_cumulative_totals_and_balances'):
+            # for what transaction ids do we know balances for this account
+            # and all children?
+            transaction_ids = set(self.totals_and_balances.keys())
+            for child in self.children:
+                transaction_ids.intersection_update(child.cumulative_totals_and_balances.keys())
+
+            res = dict()
+            for trx_id in transaction_ids:
+                res[trx_id] = TotalsAndBalancePerProduct()
+                for child in self.children:
+                    ctab = child.cumulative_totals_and_balances[trx_id]
+                    for product_id, data in ctab.items():
+                        res[product_id] = res[product_id].add(
+                            data
+                        )
+                for product_id, data in self.totals_and_balances[trx_id].items():
+                    res[product_id] = res[product_id].add(
+                        data
+                    )
+            self._cumulative_totals_and_balances = res
+        return self._cumulative_totals_and_balances
+
+    @property
+    def cumulative_totals_and_balance(self):
+        if len(self.cumulative_totals_and_balances) == 1:
+            return list(self.cumulative_totals_and_balances.values())[0]
+        else:
+            raise ValueError("totals and balances for exactly one transaction id need to be loaded")
+
+    def _invalidate_totals_and_balance_attrs(self):
+        if hasattr(self, '_totals_and_balances'):
+            del self._totals_and_balances
+        if hasattr(self, '_cumulative_totals_and_balances'):
+            del self._cumulative_totals_and_balances
 
     @classmethod
     def load_totals_and_balances(cls, accounts, transaction_ids):
@@ -198,8 +236,22 @@ class Account(Base, ExternalRefMixin):
                         )
 
         for a in accounts:
-            if hasattr("_transaction_totals", a):
-                del a._transaction_totals
+            a._invalidate_totals_and_balance_attrs()
+
+    @classmethod
+    def load_cumulative_totals_and_balances(cls, accounts, transaction_ids):
+        accounts_to_check = set(accounts)
+        accounts_including_children = set()
+        while accounts_to_check:
+            account = accounts_to_check.pop()
+            if account in accounts_including_children:
+                continue
+            for c in account.children:
+                accounts_to_check.add(c)
+            accounts_including_children.add(account)
+
+        return cls.load_totals_and_balances(accounts_including_children, transaction_ids)
+
 
     # NOT NULL / IS NULL prüfen abhängig von der type Spalte
     #

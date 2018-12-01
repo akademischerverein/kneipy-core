@@ -51,8 +51,7 @@ class TransactionInterfaceCore():
         })
 
     def tab_orm_invalidate(self, account):
-        if hasattr(account, '_transaction_totals'):
-            del account._transaction_totals
+        account._invalidate_totals_and_balance_attrs()
 
     def insert(self):
         transaktion_t = Transaction.__table__
