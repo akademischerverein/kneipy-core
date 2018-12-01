@@ -77,20 +77,3 @@ class TotalsAndBalancePerProduct(collections.UserDict):
             total_credit=0, total_debit=0,
             balance=0, transaction_count=0
         )
-
-
-class TotalsAndBalancesPerProductType(sa.types.TypeDecorator):
-    impl = sa.types.JSON
-
-    def process_bind_param(self, value, dialect):
-        raise NotImplementedError()
-
-    def process_result_value(self, value, dialect):
-        res = TotalsAndBalancePerProduct()
-        for product_id, data in value.items():
-            for f in ['total_credit', 'total_debit', 'balance']:
-                data[f] = decimal.Decimal(data[f])
-            res[uuid.UUID(product_id)] = TotalsAndBalance(
-                product_id=uuid.UUID(product_id), **data
-            )
-        return res
