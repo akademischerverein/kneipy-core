@@ -26,6 +26,7 @@ class TotalsAndBalance():
     product_id = attr.ib()
     total_credit = attr.ib(converter=convert_to_decimal)
     total_debit = attr.ib(converter=convert_to_decimal)
+    transaction_count = attr.ib()
     balance = attr.ib(converter=convert_to_decimal)
     _product_name = attr.ib(default=None)
     _product = attr.ib(default=None)
@@ -65,6 +66,7 @@ class TotalsAndBalance():
             total_debit=self.total_debit + other.total_debit,
             total_credit=self.total_credit + other.total_credit,
             balance=self.balance + other.balance,
+            transaction_count=self.transaction_count + other.transaction_count
         )
 
 
@@ -73,7 +75,7 @@ class TotalsAndBalancePerProduct(collections.UserDict):
         return TotalsAndBalance(
             product_id=key,
             total_credit=0, total_debit=0,
-            balance=0
+            balance=0, transaction_count=0
         )
 
 

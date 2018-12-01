@@ -221,7 +221,8 @@ class Account(Base, ExternalRefMixin):
                 q = gen_account_cum_q(t).alias("account_cum_" + t)
                 q = sa.select([
                     q.c.balancesheet_id, q.c.transaction_id, q.c.product_id,
-                    q.c.account_id, q.c.total_debit, q.c.total_credit, q.c.what
+                    q.c.account_id, q.c.total_debit, q.c.total_credit, q.c.what,
+                    q.c.transaction_count
                 ]).where(
                     sa.and_(
                         q.c.balancesheet_id == c[0].balancesheet_id,
@@ -234,7 +235,8 @@ class Account(Base, ExternalRefMixin):
                         [r.transaction_id][(r.product_id, r.what)] = TotalsAndBalance(
                             product_id=r.product_id,
                             total_credit=r.total_credit, total_debit=r.total_debit,
-                            balance=r.total_debit - r.total_credit
+                            balance=r.total_debit - r.total_credit,
+                            transaction_count=r.transaction_count
                         )
         for a in accounts:
             a._invalidate_totals_and_balance_attrs()
@@ -310,6 +312,7 @@ def gen_account_cum_q(what):
         account_c.label("account_id"),
         sa.func.sum(t2.c.amount).label("total_" + what),
         sa.literal(0).label("total_" + ("debit" if what == "credit" else "credit")),
+        sa.func.count().label("transaction_count"),
         sa.literal('"{}"'.format(what)).label("what")
     ]).select_from(
         sa.join(t1, t2, sa.and_(
