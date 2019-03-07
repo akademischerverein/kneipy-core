@@ -43,7 +43,10 @@ def upgrade():
         postgresql.ExcludeConstraint(
             ('balancesheet_id', '='), ('report_id', '='), ('transaction_id_range', '&&'),
             where=sa.text('NOT only_informational'), using='gist',
-            name='ex_report_transaction_report_id_balancesheet_id_transaction_id_range'
+            # Full name is 'ex_report_transaction_report_id_balancesheet_id_transaction_id_range'
+            # SQLAlchemy prior to 1.3.0 truncates. As that was the behavior when this was
+            # written, let's preserve this behavior here and not use sa.schema.conv.
+            name='ex_report_transaction_report_id_balancesheet_id_transaction_id_'
         ),
         sa.ForeignKeyConstraint(
             ['balancesheet_id'], ['balancesheet.id'],
