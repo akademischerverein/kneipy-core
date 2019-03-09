@@ -1,0 +1,11 @@
+{
+  "extends": [
+    "config:base"
+  ],
+  "pipenv": {
+    "enabled": true
+  },
+  "pip_setup": {
+      "enabled": true
+  }
+}
