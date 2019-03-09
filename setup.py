@@ -13,8 +13,12 @@ except ImportError:
 
 here = os.path.abspath(os.path.dirname(__file__))
 
-with open(os.path.join(here, 'README.md')) as f:
-    README = f.read()
+try:
+    with open(os.path.join(here, 'README.md')) as f:
+        README = f.read()
+except FileNotFoundError:
+    # this happens if renovate tries to parse this file
+    README = ""
 
 REQUIREMENTS = [
     'SQLAlchemy>=1.2.0',
