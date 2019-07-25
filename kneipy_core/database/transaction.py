@@ -80,6 +80,11 @@ class Transaction(Base):
             'credit_account_id',
             name='uq_transaction_debit'
         ),
+        sa.UniqueConstraint(
+            'balancesheet_id',
+            'cancellation_for_transaction_id',
+            name='uq_transaction_cancellation_for_transaction_id'
+        ),
         sa.ForeignKeyConstraint([
                 'credit_account_id', 'balancesheet_id'
             ], [
@@ -153,8 +158,7 @@ class Transaction(Base):
 
     cancellation_for_transaction_id = sa.Column(
         sa.BigInteger,
-        nullable=True,
-        unique=True
+        nullable=True
     )
     cancellation_for_transaction = relationship(
         'Transaction',
