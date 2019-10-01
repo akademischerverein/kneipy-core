@@ -1,5 +1,5 @@
 import sqlalchemy as sa
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import backref, relationship
 
 from kneipy_core.lib.sqlalchemy_uuid import GUID
 
@@ -162,7 +162,7 @@ class Transaction(Base):
     )
     cancellation_for_transaction = relationship(
         'Transaction',
-        backref=sa.backref('cancelled_by', uselist=False),
+        backref=backref('cancelled_by', uselist=False),
         remote_side=[id, balancesheet_id],
         uselist=False
     )
