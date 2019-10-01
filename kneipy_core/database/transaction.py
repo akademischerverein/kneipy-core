@@ -162,25 +162,8 @@ class Transaction(Base):
     )
     cancellation_for_transaction = relationship(
         'Transaction',
-        back_populates='cancelled_by',
-        primaryjoin=(sa.and_(
-            cancellation_for_transaction_id == id,
-            balancesheet_id == balancesheet_id.label('balancesheet_id_remote')
-        )),
-        remote_side=[id, balancesheet_id.label('balancesheet_id_remote')],
-        uselist=False
-    )
-    cancelled_by = relationship(
-        'Transaction',
-        back_populates='cancellation_for_transaction',
-        primaryjoin=(sa.and_(
-            cancellation_for_transaction_id == id,
-            balancesheet_id == balancesheet_id.label('balancesheet_id_remote')
-        )),
-        remote_side=[
-            cancellation_for_transaction_id,
-            balancesheet_id.label('balancesheet_id_remote')
-        ],
+        backref=sa.backref('cancelled_by', uselist=False),
+        remote_side=[id, balancesheet_id],
         uselist=False
     )
 
