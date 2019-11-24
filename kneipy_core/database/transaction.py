@@ -1,7 +1,6 @@
 import sqlalchemy as sa
-from sqlalchemy.orm import backref, relationship
-
 from kneipy_core.lib.sqlalchemy_uuid import GUID
+from sqlalchemy.orm import backref, relationship
 
 from .base import Base
 
@@ -157,15 +156,22 @@ class Transaction(Base):
     text = sa.Column(sa.Unicode, nullable=False)
 
     cancellation_for_transaction_id = sa.Column(
-        sa.BigInteger,
+        sa.BigInteger, sa.ForeignKey('transaction.id'),
         nullable=True
     )
-    cancellation_for_transaction = relationship(
-        'Transaction',
-        backref=backref('cancelled_by', uselist=False),
-        remote_side=[id, balancesheet_id],
-        uselist=False
-    )
+
+
+Transaction.cancellation_for_transaction = relationship(
+    'Transaction',
+    backref=backref('cancelled_by', uselist=False),
+    remote_side=[
+        Transaction.balancesheet_id, Transaction.id, Transaction.product_id,
+        Transaction.credit_account_id, Transaction.debit_account_id],
+    uselist=False,
+    foreign_keys=[
+        Transaction.balancesheet_id, Transaction.cancellation_for_transaction_id, Transaction.product_id,
+        Transaction.credit_account_id, Transaction.debit_account_id],
+)
 
 
 update_transaction_id_increment_trigger = sa.DDL("""
