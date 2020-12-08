@@ -156,7 +156,7 @@ class Transaction(Base):
     text = sa.Column(sa.Unicode, nullable=False)
 
     cancellation_for_transaction_id = sa.Column(
-        sa.BigInteger, sa.ForeignKey('transaction.id'),
+        sa.BigInteger,
         nullable=True
     )
 
