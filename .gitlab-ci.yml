@@ -1,22 +1,6 @@
 stages:
  - test
 
-.install-deps-jessie: &install-deps-jessie
-  image: debian:jessie
-  before_script:
-  # Configure apt caching
-  - echo $CI_PROJECT_DIR
-  - export APT_DIR=$CI_PROJECT_DIR/.apt && export APT_STATE_LISTS=$APT_DIR/lists && export APT_CACHE_ARCHIVES=$APT_DIR/archives
-  - printf "dir::state::lists    ${APT_STATE_LISTS};\ndir::cache::archives    ${APT_CACHE_ARCHIVES};\n" > /etc/apt/apt.conf
-  - mkdir -p "${APT_STATE_LISTS}/partial" && mkdir -p "${APT_CACHE_ARCHIVES}/partial"
-  # Install dependencies
-  - apt-get -qq update -y
-  - apt-get -qq install -y build-essential python3-pip python3-virtualenv python3-dev wget ca-certificates gnupg2
-  - wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
-  - echo "deb http://apt.postgresql.org/pub/repos/apt/ jessie-pgdg main" > /etc/apt/sources.list.d/pgdg.list
-  - apt-get -qq update -y
-  - apt-get -qq install -y postgresql-client-10 libpq5 libpq-dev
-
 .install-deps-stretch: &install-deps-stretch
   image: debian:stretch
   before_script:
@@ -80,12 +64,6 @@ stages:
     paths:
       - .cache
       - .apt
-
-test-jessie-pg10:
-  <<: *install-deps-jessie
-  <<: *run-tests
-  <<: *using-pg10
-  stage: test
 
 test-stretch-pg10:
   <<: *install-deps-stretch
