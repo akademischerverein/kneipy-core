@@ -160,18 +160,7 @@ class Transaction(Base):
         nullable=True
     )
 
-
-Transaction.cancellation_for_transaction = relationship(
-    'Transaction',
-    backref=backref('cancelled_by', uselist=False),
-    remote_side=[
-        Transaction.balancesheet_id, Transaction.id, Transaction.product_id,
-        Transaction.credit_account_id, Transaction.debit_account_id],
-    uselist=False,
-    foreign_keys=[
-        Transaction.balancesheet_id, Transaction.cancellation_for_transaction_id, Transaction.product_id,
-        Transaction.credit_account_id, Transaction.debit_account_id],
-)
+    cancellation_for_transaction = relationship('Transaction', remote_side=[balancesheet_id, id, product_id, credit_account_id, debit_account_id])
 
 
 update_transaction_id_increment_trigger = sa.DDL("""
