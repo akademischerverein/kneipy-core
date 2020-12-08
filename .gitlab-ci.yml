@@ -59,6 +59,7 @@ stages:
   variables:
     DATABASE_URI_TESTS: postgresql://kneipy-dev:kneipy-dev@postgres/kneipy-tests
     XDG_CACHE_HOME: ".cache"
+    POSTGRES_HOST_AUTH_METHOD: "trust"
   cache:
     key: "$CI_JOB_NAME"
     paths:
