@@ -85,21 +85,36 @@ class Transaction(Base):
             name='uq_transaction_cancellation_for_transaction_id'
         ),
         sa.ForeignKeyConstraint([
-                'credit_account_id', 'balancesheet_id'
+                'credit_account_id', 'company_id'
             ], [
-                'account.id', 'account.balancesheet_id'
+                'account.id', 'account.company_id'
             ],
             onupdate="RESTRICT", ondelete="RESTRICT",
             name='credit_account'
         ),
         sa.ForeignKeyConstraint([
-                'debit_account_id', 'balancesheet_id'
+                'debit_account_id', 'company_id'
             ], [
-                'account.id', 'account.balancesheet_id'
+                'account.id', 'account.company_id'
             ],
             onupdate="RESTRICT", ondelete="RESTRICT",
             name='debit_account'
         ),
+        sa.ForeignKeyConstraint([
+                'balancesheet_id', 'company_id'
+            ], [
+                'balancesheet.id', 'balancesheet_id.company_id'
+            ],
+            onupdate="RESTRICT", ondelete="RESTRICT",
+            name='company'
+        ),
+    )
+    company_id = sa.Column(
+        sa.ForeignKey(
+            'company.id',
+            onupdate="RESTRICT", ondelete="RESTRICT"
+        ),
+        nullable=False
     )
     balancesheet_id = sa.Column(
         sa.ForeignKey(
