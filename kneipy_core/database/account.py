@@ -7,7 +7,6 @@ from sqlalchemy.dialects.postgresql import ENUM
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import relationship
 
-from .balancesheet import BalanceSheet
 from .base import Base
 from .mixins import ExternalRefMixin
 from .product import Product
@@ -113,52 +112,42 @@ class Account(Base, ExternalRefMixin):
             except KeyError:
                 return result
 
-            for trx_id, rows in cum_amounts.items():
-                result[trx_id] = TotalsAndBalancePerProduct()
-                for row in rows.values():
-                    result[trx_id][row.product_id] = result[trx_id][row.product_id].add(row)
+            for b_id in cum_amounts.keys():
+                result[b_id] = dict()
+                for trx_id, rows in cum_amounts[b_id].items():
+                    result[b_id][trx_id] = TotalsAndBalancePerProduct()
+                    for row in rows.values():
+                        result[b_id][trx_id][row.product_id] = result[b_id][trx_id][row.product_id].add(row)
             self._totals_and_balances = result
 
         return self._totals_and_balances
-
-    @property
-    def totals_and_balance(self):
-        if len(self.totals_and_balances) == 1:
-            return list(self.totals_and_balances.values())[0]
-        else:
-            raise ValueError("totals and balances for exactly one transaction id need to be loaded")
 
     @property
     def cumulative_totals_and_balances(self):
         if not hasattr(self, '_cumulative_totals_and_balances'):
             # for what transaction ids do we know balances for this account
             # and all children?
-            transaction_ids = set(self.totals_and_balances.keys())
-            for child in self.children:
-                transaction_ids.intersection_update(child.cumulative_totals_and_balances.keys())
-
             res = dict()
-            for trx_id in transaction_ids:
-                res[trx_id] = TotalsAndBalancePerProduct()
+            for b_id in self.totals_and_balances.keys():
+                res[b_id] = dict()
+                transaction_ids = set(self.totals_and_balances[b_id].keys())
                 for child in self.children:
-                    ctab = child.cumulative_totals_and_balances[trx_id]
-                    for product_id, data in ctab.items():
-                        res[trx_id][product_id] = res[trx_id][product_id].add(
+                    transaction_ids.intersection_update(child.cumulative_totals_and_balances[b_id].keys())
+
+                for trx_id in transaction_ids:
+                    res[b_id][trx_id] = TotalsAndBalancePerProduct()
+                    for child in self.children:
+                        ctab = child.cumulative_totals_and_balances[b_id][trx_id]
+                        for product_id, data in ctab.items():
+                            res[b_id][trx_id][product_id] = res[b_id][trx_id][product_id].add(
+                                data
+                            )
+                    for product_id, data in self.totals_and_balances[b_id][trx_id].items():
+                        res[b_id][trx_id][product_id] = res[b_id][trx_id][product_id].add(
                             data
                         )
-                for product_id, data in self.totals_and_balances[trx_id].items():
-                    res[trx_id][product_id] = res[trx_id][product_id].add(
-                        data
-                    )
             self._cumulative_totals_and_balances = res
         return self._cumulative_totals_and_balances
-
-    @property
-    def cumulative_totals_and_balance(self):
-        if len(self.cumulative_totals_and_balances) == 1:
-            return list(self.cumulative_totals_and_balances.values())[0]
-        else:
-            raise ValueError("totals and balances for exactly one transaction id need to be loaded")
 
     def _invalidate_totals_and_balance_attrs(self):
         if hasattr(self, '_totals_and_balances'):
@@ -167,10 +156,10 @@ class Account(Base, ExternalRefMixin):
             del self._cumulative_totals_and_balances
 
     @classmethod
-    def load_totals_and_balances(cls, accounts, transaction_ids):
+    def load_totals_and_balances(cls, accounts, balancesheet_id, transaction_ids):
         if isinstance(transaction_ids, int):
             transaction_ids = [transaction_ids]
-        if not accounts or not transaction_ids:
+        if not accounts or not transaction_ids or not balancesheet_ids:
             return
         if not isinstance(accounts, list):
             accounts = list(accounts)
@@ -191,17 +180,14 @@ class Account(Base, ExternalRefMixin):
         # Also query in chunks of 500 accounts to account for limitations
         # of the IN sql-construct
         accounts_by_balancesheets = collections.defaultdict(lambda: set())
-        for a in accounts:
-            accounts_by_balancesheets[a.balancesheet_id].add(a)
         chunks = []
-        for accounts_one_balancesheet in accounts_by_balancesheets.values():
-            while len(accounts_one_balancesheet) > 500:
-                chunks.append([])
-                for _ in range(500):
-                    chunks[-1].append(accounts_one_balancesheet.pop())
+        while len(accounts) > 500:
             chunks.append([])
-            while accounts_one_balancesheet:
-                chunks[-1].append(accounts_one_balancesheet.pop())
+            for _ in range(500):
+                chunks[-1].append(accounts.pop())
+        chunks.append([])
+        while accounts:
+            chunks[-1].append(accounts.pop())
 
         for c in chunks:
             assert c
@@ -212,9 +198,11 @@ class Account(Base, ExternalRefMixin):
             for a in c:
                 if a.id not in session.info[INFO_CUM_AMOUNTS]:
                     session.info[INFO_CUM_AMOUNTS][a.id] = dict()
+                if balancesheet_id not in session.info[INFO_CUM_AMOUNTS][a.id]:
+                    session.info[INFO_CUM_AMOUNTS][a.id][balancesheet_id] = dict()
                 for trx_id in transaction_ids:
-                    if trx_id not in session.info[INFO_CUM_AMOUNTS][a.id]:
-                        session.info[INFO_CUM_AMOUNTS][a.id][trx_id] = dict()
+                    if trx_id not in session.info[INFO_CUM_AMOUNTS][a.id][balancesheet_id]:
+                        session.info[INFO_CUM_AMOUNTS][a.id][balancesheet_id][trx_id] = dict()
 
             for t in ["credit", "debit"]:
                 q = gen_account_cum_q(t).alias("account_cum_" + t)
@@ -224,13 +212,13 @@ class Account(Base, ExternalRefMixin):
                     q.c.transaction_count
                 ]).where(
                     sa.and_(
-                        q.c.balancesheet_id == c[0].balancesheet_id,
+                        q.c.balancesheet_id == balancesheet_id,
                         q.c.account_id.in_([a.id for a in c]),
                         q.c.transaction_id.in_(transaction_ids)
                     )
                 )
                 for r in session.execute(q):
-                    session.info[INFO_CUM_AMOUNTS][r.account_id] \
+                    session.info[INFO_CUM_AMOUNTS][r.account_id][balancesheet_id] \
                         [r.transaction_id][(r.product_id, r.what)] = TotalsAndBalance(
                             product_id=r.product_id,
                             total_credit=r.total_credit, total_debit=r.total_debit,
@@ -241,7 +229,7 @@ class Account(Base, ExternalRefMixin):
             a._invalidate_totals_and_balance_attrs()
 
     @classmethod
-    def load_cumulative_totals_and_balances(cls, accounts, transaction_ids):
+    def load_cumulative_totals_and_balances(cls, accounts, balancesheet_id, transaction_ids):
         accounts_to_check = set(accounts)
         accounts_including_children = set()
         while accounts_to_check:
@@ -252,7 +240,7 @@ class Account(Base, ExternalRefMixin):
                 accounts_to_check.add(c)
             accounts_including_children.add(account)
 
-        return cls.load_totals_and_balances(accounts_including_children, transaction_ids)
+        return cls.load_totals_and_balances(accounts_including_children, balancesheet_id, transaction_ids)
 
 
     # NOT NULL / IS NULL prüfen abhängig von der type Spalte
