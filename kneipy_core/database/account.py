@@ -1,6 +1,6 @@
 import collections
-
 import enum
+
 import sqlalchemy as sa
 from kneipy_core.lib.sqlalchemy_uuid import GUID
 from sqlalchemy.dialects.postgresql import ENUM
@@ -62,14 +62,14 @@ class Account(Base, ExternalRefMixin):
 
     type = sa.Column(ENUM(AccountTypes), nullable=False)
 
-    balancesheet_id = sa.Column(
+    company_id = sa.Column(
         sa.ForeignKey(
-            'balancesheet.id',
-            onupdate="RESTRICT", ondelete="RESTRICT",
+            'company.id',
+            onupdate="RESTRICT", ondelete="RESTRICT"
         ),
-        nullable=False
+        nullable=False,
     )
-    balancesheet = relationship('BalanceSheet', back_populates='accounts')
+    company = relationship('Company', backref='accounts')
 
     parent_id = sa.Column(
         GUID, nullable=True
@@ -289,12 +289,12 @@ class Account(Base, ExternalRefMixin):
                 'id',
             ),
             sa.UniqueConstraint(
-                'balancesheet_id', 'id',
-                name='uq_account_balancesheet_id_for_fk'
+                'company_id', 'id',
+                name='uq_account_company_id_for_fk'
             ),
             sa.UniqueConstraint(
-                'balancesheet_id', 'name',
-                name='uq_account_balancesheet_id_name'
+                'company_id', 'name',
+                name='uq_account_company_id_name'
             )
         ])
 
