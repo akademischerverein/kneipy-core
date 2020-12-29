@@ -103,7 +103,7 @@ class Transaction(Base):
         sa.ForeignKeyConstraint([
                 'balancesheet_id', 'company_id'
             ], [
-                'balancesheet.id', 'balancesheet_id.company_id'
+                'balancesheet.id', 'balancesheet.company_id'
             ],
             onupdate="RESTRICT", ondelete="RESTRICT",
             name='company'
