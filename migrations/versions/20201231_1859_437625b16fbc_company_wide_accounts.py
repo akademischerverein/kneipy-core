@@ -22,8 +22,8 @@ def upgrade():
     op.add_column('account', sa.Column('company_id', kneipy_core.lib.sqlalchemy_uuid.GUID(), nullable=True))
     op.add_column('transaction', sa.Column('company_id', kneipy_core.lib.sqlalchemy_uuid.GUID(), nullable=True))
     # fill company_id
-    op.execute('update account set company_id=balancesheet_id.company_id from balancesheet where account.balancesheet_id=balancesheet.id')
-    op.execute('update transaction set company_id=balancesheet_id.company_id from balancesheet where transaction.balancesheet_id=balancesheet.id')
+    op.execute('update account set company_id=balancesheet.company_id from balancesheet where account.balancesheet_id=balancesheet.id')
+    op.execute('update transaction set company_id=balancesheet.company_id from balancesheet where transaction.balancesheet_id=balancesheet.id')
     op.alter_column('account', 'company_id',
                existing_type=kneipy_core.lib.sqlalchemy_uuid.GUID(),
                nullable=False)
@@ -42,13 +42,13 @@ def upgrade():
 with raw_account as (
     select
         id, company_id, person_id, name,
-        row_number() OVER (partition by company_id, person_id, name) as row 
+        row_number() OVER (partition by company_id, person_id, name) as row
     from account as a
 ),
 replacement as (
     select src.id as old_id, dest.id as new_id
     from raw_account as src
-    inner join raw_account as dest on 
+    inner join raw_account as dest on
         src.company_id=dest.company_id and
         (src.name=dest.name or src.person_id=dest.person_id)
     where src.row!=1 and dest.row=1
@@ -56,19 +56,19 @@ replacement as (
 update transaction
 set debit_account_id=new_id
 FROM replacement
-WHERE replacement.old_id=debit_account_id;
+WHERE replacement.old_id=debit_account_id
 ''')
     op.execute('''
 with raw_account as (
     select
         id, company_id, person_id, name,
-        row_number() OVER (partition by company_id, person_id, name) as row 
+        row_number() OVER (partition by company_id, person_id, name) as row
     from account as a
 ),
 replacement as (
     select src.id as old_id, dest.id as new_id
     from raw_account as src
-    inner join raw_account as dest on 
+    inner join raw_account as dest on
         src.company_id=dest.company_id and
         (src.name=dest.name or src.person_id=dest.person_id)
     where src.row!=1 and dest.row=1
@@ -76,20 +76,40 @@ replacement as (
 update transaction
 set credit_account_id=new_id
 FROM replacement
-WHERE replacement.old_id=credit_account_id;
+WHERE replacement.old_id=credit_account_id
+''')
+    op.execute('''
+with raw_account as (
+    select
+        id, company_id, person_id, name,
+        row_number() OVER (partition by company_id, person_id, name) as row
+    from account as a
+),
+replacement as (
+    select src.id as old_id, dest.id as new_id
+    from raw_account as src
+    inner join raw_account as dest on
+        src.company_id=dest.company_id and
+        (src.name=dest.name or src.person_id=dest.person_id)
+    where src.row!=1 and dest.row=1
+)
+update account
+set parent_id=new_id
+FROM replacement
+WHERE replacement.old_id=parent_id
 ''')
 
     op.execute('''
 with raw_account as (
     select
         id, company_id, person_id, name,
-        row_number() OVER (partition by company_id, person_id, name) as row 
+        row_number() OVER (partition by company_id, person_id, name) as row
     from account as a
 ),
 replacement as (
     select src.id as old_id, dest.id as new_id
     from raw_account as src
-    inner join raw_account as dest on 
+    inner join raw_account as dest on
         src.company_id=dest.company_id and
         (src.name=dest.name or src.person_id=dest.person_id)
     where src.row!=1 and dest.row=1
