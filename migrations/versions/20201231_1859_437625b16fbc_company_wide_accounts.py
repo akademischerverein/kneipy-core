@@ -34,10 +34,6 @@ def upgrade():
 
     op.drop_constraint('credit_account', 'transaction', type_='foreignkey')
     op.drop_constraint('debit_account', 'transaction', type_='foreignkey')
-    op.create_foreign_key('company', 'transaction', 'balancesheet', ['balancesheet_id', 'company_id'], ['id', 'company_id'], onupdate='RESTRICT', ondelete='RESTRICT')
-    op.create_foreign_key('credit_account', 'transaction', 'account', ['credit_account_id', 'company_id'], ['id', 'company_id'], onupdate='RESTRICT', ondelete='RESTRICT')
-    op.create_foreign_key(op.f('fk_transaction_company_id_company'), 'transaction', 'company', ['company_id'], ['id'], onupdate='RESTRICT', ondelete='RESTRICT')
-    op.create_foreign_key('debit_account', 'transaction', 'account', ['debit_account_id', 'company_id'], ['id', 'company_id'], onupdate='RESTRICT', ondelete='RESTRICT')
 # replace transaction accounts
     op.execute('''
 with raw_account as (
@@ -126,6 +122,11 @@ WHERE account.id=old_id
     op.drop_constraint('fk_account_balancesheet_id_balancesheet', 'account', type_='foreignkey')
     op.create_foreign_key(op.f('fk_account_company_id_company'), 'account', 'company', ['company_id'], ['id'], onupdate='RESTRICT', ondelete='RESTRICT')
     op.drop_column('account', 'balancesheet_id')
+
+    op.create_foreign_key('company', 'transaction', 'balancesheet', ['balancesheet_id', 'company_id'], ['id', 'company_id'], onupdate='RESTRICT', ondelete='RESTRICT')
+    op.create_foreign_key('credit_account', 'transaction', 'account', ['credit_account_id', 'company_id'], ['id', 'company_id'], onupdate='RESTRICT', ondelete='RESTRICT')
+    op.create_foreign_key(op.f('fk_transaction_company_id_company'), 'transaction', 'company', ['company_id'], ['id'], onupdate='RESTRICT', ondelete='RESTRICT')
+    op.create_foreign_key('debit_account', 'transaction', 'account', ['debit_account_id', 'company_id'], ['id', 'company_id'], onupdate='RESTRICT', ondelete='RESTRICT')
     # ### end Alembic commands ###
 
 
