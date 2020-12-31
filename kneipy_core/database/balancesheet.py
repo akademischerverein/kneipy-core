@@ -1,11 +1,9 @@
 from contextlib import contextmanager
 
 import sqlalchemy as sa
-from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import DATERANGE, \
-    ExcludeConstraint
-
 from kneipy_core.lib.sqlalchemy_uuid import GUID
+from sqlalchemy.dialects.postgresql import DATERANGE, ExcludeConstraint
+from sqlalchemy.orm import relationship
 
 from .base import Base
 
@@ -62,6 +60,10 @@ class BalanceSheet(Base):
         ExcludeConstraint(
             ('company_id', '='), ('daterange', '&&'),
             name='ex_balancesheet_company_id_daterange'
+        ),
+        sa.UniqueConstraint(
+            'id', 'company_id',
+            name='uq_balancesheet_company_id_for_fk'
         ),
     )
 
