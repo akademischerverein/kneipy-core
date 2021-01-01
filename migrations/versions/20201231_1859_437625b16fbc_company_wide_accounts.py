@@ -89,10 +89,10 @@ def downgrade():
     op.execute('insert into account (external_refs, parent_id, person_id, name, type, parent_type, company_id, balancesheet_id) \
                 select external_refs, parent_id, person_id, a.name, type, parent_type, a.company_id, b.id as balancesheet_id from account as a inner join balancesheet as b on b.company_id=a.company_id ON conflict do nothing')
     op.execute('''
-with replacement as (select a1.id as a1id, a1.parent_id, a1.company_id as a1co, a2.company_id as a2co, a3.id as new_id 
+with replacement as (select a1.id as a1id, a1.parent_id, a1.company_id as a1co, a2.company_id as a2co, a3.id as new_id
 from account as a1 join account as a2 on a1.parent_id=a2.id join account as a3 on a1.balancesheet_id=a3.balancesheet_id and a2.name=a3.name
 where a1.parent_id is not null and a2.company_id!=a1.company_id)
-update account set account.
+update account set parent_id=replacement.new_id from replacement where replacement.a1id=account.id
     ''')
 
     op.drop_constraint('debit_account', 'transaction', type_='foreignkey')
