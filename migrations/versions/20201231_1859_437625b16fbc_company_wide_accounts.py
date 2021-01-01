@@ -34,88 +34,33 @@ def upgrade():
 
     op.drop_constraint('credit_account', 'transaction', type_='foreignkey')
     op.drop_constraint('debit_account', 'transaction', type_='foreignkey')
-# replace transaction accounts
-    op.execute('''
-with raw_account as (
-    select
-        id, company_id, person_id, name,
-        row_number() OVER (partition by company_id, person_id, name) as row
-    from account as a
-),
-replacement as (
-    select src.id as old_id, dest.id as new_id
-    from raw_account as src
-    inner join raw_account as dest on
-        src.company_id=dest.company_id and
-        (src.name=dest.name or src.person_id=dest.person_id)
-    where src.row!=1 and dest.row=1
-)
-update transaction
-set debit_account_id=new_id
-FROM replacement
-WHERE replacement.old_id=debit_account_id
-''')
-    op.execute('''
-with raw_account as (
-    select
-        id, company_id, person_id, name,
-        row_number() OVER (partition by company_id, person_id, name) as row
-    from account as a
-),
-replacement as (
-    select src.id as old_id, dest.id as new_id
-    from raw_account as src
-    inner join raw_account as dest on
-        src.company_id=dest.company_id and
-        (src.name=dest.name or src.person_id=dest.person_id)
-    where src.row!=1 and dest.row=1
-)
-update transaction
-set credit_account_id=new_id
-FROM replacement
-WHERE replacement.old_id=credit_account_id
-''')
-    op.execute('''
-with raw_account as (
-    select
-        id, company_id, person_id, name,
-        row_number() OVER (partition by company_id, person_id, name) as row
-    from account as a
-),
-replacement as (
-    select src.id as old_id, dest.id as new_id
-    from raw_account as src
-    inner join raw_account as dest on
-        src.company_id=dest.company_id and
-        (src.name=dest.name or src.person_id=dest.person_id)
-    where src.row!=1 and dest.row=1
-)
-update account
-set parent_id=new_id
-FROM replacement
-WHERE replacement.old_id=parent_id
-''')
-
-    op.execute('''
-with raw_account as (
-    select
-        id, company_id, person_id, name,
-        row_number() OVER (partition by company_id, person_id, name) as row
-    from account as a
-),
-replacement as (
-    select src.id as old_id, dest.id as new_id
-    from raw_account as src
-    inner join raw_account as dest on
-        src.company_id=dest.company_id and
-        (src.name=dest.name or src.person_id=dest.person_id)
-    where src.row!=1 and dest.row=1
-)
-delete from account USING replacement
-WHERE account.id=old_id
-''')
-
     op.create_unique_constraint('uq_account_company_id_for_fk', 'account', ['company_id', 'id'])
+    op.create_foreign_key('credit_account', 'transaction', 'account', ['credit_account_id', 'company_id'], ['id', 'company_id'], onupdate='RESTRICT', ondelete='RESTRICT')
+    op.create_foreign_key('debit_account', 'transaction', 'account', ['debit_account_id', 'company_id'], ['id', 'company_id'], onupdate='RESTRICT', ondelete='RESTRICT')
+# replace transaction accounts
+    op.execute('create table temp (old_id uuid primary key, new_id uuid not null)')
+    op.execute('''
+with raw_account as (
+    select
+        id, company_id, person_id, name,
+        row_number() OVER (partition by company_id, person_id, name) as row
+    from account as a
+),
+replacement as (
+    select src.id as old_id, dest.id as new_id
+    from raw_account as src
+    inner join raw_account as dest on
+        src.company_id=dest.company_id and
+        (src.name=dest.name or src.person_id=dest.person_id)
+    where src.row!=1 and dest.row=1
+)
+insert into temp select * from replacement
+''')
+    op.execute('update transaction set debit_account_id=new_id FROM temp WHERE temp.old_id=debit_account_id')
+    op.execute('update transaction set credit_account_id=new_id FROM temp WHERE temp.old_id=credit_account_id')
+    op.execute('update account set parent_id=new_id FROM temp WHERE temp.old_id=parent_id')
+    op.execute('delete from account using temp where account.id=old_id')
+
     op.create_unique_constraint('uq_account_company_id_name', 'account', ['company_id', 'name'])
     op.drop_constraint('uq_account_balancesheet_id_for_fk', 'account', type_='unique')
     op.drop_constraint('uq_account_balancesheet_id_name', 'account', type_='unique')
@@ -124,9 +69,7 @@ WHERE account.id=old_id
     op.drop_column('account', 'balancesheet_id')
 
     op.create_foreign_key('company', 'transaction', 'balancesheet', ['balancesheet_id', 'company_id'], ['id', 'company_id'], onupdate='RESTRICT', ondelete='RESTRICT')
-    op.create_foreign_key('credit_account', 'transaction', 'account', ['credit_account_id', 'company_id'], ['id', 'company_id'], onupdate='RESTRICT', ondelete='RESTRICT')
     op.create_foreign_key(op.f('fk_transaction_company_id_company'), 'transaction', 'company', ['company_id'], ['id'], onupdate='RESTRICT', ondelete='RESTRICT')
-    op.create_foreign_key('debit_account', 'transaction', 'account', ['debit_account_id', 'company_id'], ['id', 'company_id'], onupdate='RESTRICT', ondelete='RESTRICT')
     # ### end Alembic commands ###
 
 
