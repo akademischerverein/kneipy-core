@@ -163,7 +163,7 @@ class Transaction(Base):
     cancellation_for_transaction = relationship(
         'Transaction',
         remote_side=[balancesheet_id, id, product_id, credit_account_id, debit_account_id],
-        backref='cancelled_by',
+        backref=backref('cancelled_by', uselist=False),
         viewonly=True
     )
 
