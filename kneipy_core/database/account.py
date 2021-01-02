@@ -159,7 +159,7 @@ class Account(Base, ExternalRefMixin):
     def load_totals_and_balances(cls, accounts, balancesheet_id, transaction_ids):
         if isinstance(transaction_ids, int):
             transaction_ids = [transaction_ids]
-        if not accounts or not transaction_ids or not balancesheet_ids:
+        if not accounts or not transaction_ids or not balancesheet_id:
             return
         if not isinstance(accounts, list):
             accounts = list(accounts)
