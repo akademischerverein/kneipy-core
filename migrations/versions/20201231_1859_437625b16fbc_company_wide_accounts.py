@@ -86,13 +86,35 @@ def downgrade():
     op.drop_constraint('uq_account_company_id_name', 'account', type_='unique')
     op.create_unique_constraint('uq_account_balancesheet_id_name', 'account', ['balancesheet_id', 'name'])
     op.create_unique_constraint('uq_account_balancesheet_id_for_fk', 'account', ['balancesheet_id', 'id'])
-    op.execute('insert into account (external_refs, parent_id, person_id, name, type, parent_type, company_id, balancesheet_id) \
-                select external_refs, parent_id, person_id, a.name, type, parent_type, a.company_id, b.id as balancesheet_id from account as a inner join balancesheet as b on b.company_id=a.company_id ON conflict do nothing')
     op.execute('''
-with replacement as (select a1.id as a1id, a1.parent_id, a1.company_id as a1co, a2.company_id as a2co, a3.id as new_id
-from account as a1 join account as a2 on a1.parent_id=a2.id join account as a3 on a1.balancesheet_id=a3.balancesheet_id and a2.name=a3.name
-where a1.parent_id is not null and a2.company_id!=a1.company_id)
+insert into account (external_refs, parent_id, person_id, name, type, parent_type, company_id, balancesheet_id)
+select a.external_refs, a.parent_id, a.person_id, a.name, a.type, a.parent_type, a.company_id, b.id as balancesheet_id
+from account as a inner join balancesheet as b on b.company_id=a.company_id
+left join account as exist on exist.external_refs=a.external_refs and (exist.name=a.name or exist.person_id=a.person_id) and exist.balancesheet_id=b.id
+where exist.id is null
+    ''')
+    op.execute('''
+with replacement as (select a1.id as a1id, a1.parent_id, a1.balancesheet_id as a1balance, a2.balancesheet_id as a2balance, a3.id as new_id
+from account as a1 join account as a2 on a1.parent_id=a2.id
+join account as a3 on a1.balancesheet_id=a3.balancesheet_id and a2.external_refs=a3.external_refs and (a2.name=a3.name or a2.person_id=a3.person_id)
+where a1.parent_id is not null and a2.balancesheet_id!=a1.balancesheet_id)
 update account set parent_id=replacement.new_id from replacement where replacement.a1id=account.id
+    ''')
+    op.execute('''
+with replacement as (select t.id, t.credit_account_id as current_id, t.balancesheet_id, t.company_id, a2.id as new_id
+from transaction as t JOIN account as a1 ON t.credit_account_id=a1.id
+JOIN account as a2 ON t.balancesheet_id=a2.balancesheet_id and a1.external_refs=a2.external_refs and (a1.name=a2.name or a1.person_id=a2.person_id)
+WHERE t.balancesheet_id!=a1.balancesheet_id)
+update transaction set credit_account_id=replacement.new_id from replacement
+where replacement.id=transaction.id and replacement.balancesheet_id=transaction.balancesheet_id
+    ''')
+        op.execute('''
+with replacement as (select t.id, t.debit_account_id as current_id, t.balancesheet_id, t.company_id, a2.id as new_id
+from transaction as t JOIN account as a1 ON t.debit_account_id=a1.id
+JOIN account as a2 ON t.balancesheet_id=a2.balancesheet_id and a1.external_refs=a2.external_refs and (a1.name=a2.name or a1.person_id=a2.person_id)
+WHERE t.balancesheet_id!=a1.balancesheet_id)
+update transaction set debit_account_id=replacement.new_id from replacement
+where replacement.id=transaction.id and replacement.balancesheet_id=transaction.balancesheet_id
     ''')
 
     op.drop_constraint('debit_account', 'transaction', type_='foreignkey')
