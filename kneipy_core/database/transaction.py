@@ -128,7 +128,7 @@ class Transaction(Base):
         server_default=sa.FetchedValue(),
         nullable=False
     )
-    balancesheet = relationship('BalanceSheet')
+    balancesheet = relationship('BalanceSheet', foreign_keys=[balancesheet_id])
 
     transaction_group_id = sa.Column(
         sa.BigInteger,
