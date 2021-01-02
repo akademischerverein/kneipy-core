@@ -70,7 +70,9 @@ class TransactionInterfaceCore():
                 text=sa.bindparam('text'),
                 cancellation_for_transaction_id=sa.bindparam(
                     'cancellation_for_transaction_id'
-                )
+                ),
+                company_id=sa.bindparam('company_id'),
+                balancesheet_id=sa.bindparam('balancesheet_id')
             )
         self.session.execute(query, self.transactions)
         accounts = set(
