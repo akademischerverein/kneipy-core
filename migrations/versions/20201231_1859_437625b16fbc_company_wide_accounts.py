@@ -108,7 +108,7 @@ WHERE t.balancesheet_id!=a1.balancesheet_id)
 update transaction set credit_account_id=replacement.new_id from replacement
 where replacement.id=transaction.id and replacement.balancesheet_id=transaction.balancesheet_id
     ''')
-        op.execute('''
+    op.execute('''
 with replacement as (select t.id, t.debit_account_id as current_id, t.balancesheet_id, t.company_id, a2.id as new_id
 from transaction as t JOIN account as a1 ON t.debit_account_id=a1.id
 JOIN account as a2 ON t.balancesheet_id=a2.balancesheet_id and a1.external_refs=a2.external_refs and (a1.name=a2.name or a1.person_id=a2.person_id)
