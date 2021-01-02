@@ -68,7 +68,7 @@ class Account(Base, ExternalRefMixin):
         ),
         nullable=False,
     )
-    company = relationship('Company', backref='accounts')
+    company = relationship('Company', back_populates='accounts')
 
     parent_id = sa.Column(
         GUID, nullable=True
