@@ -42,7 +42,7 @@ def upgrade():
     op.execute('''
 with raw_account as (
     select
-        id, company_id, person_id, name, external_refs
+        id, company_id, person_id, name, external_refs,
         row_number() OVER (partition by company_id, person_id, name, external_refs) as row
     from account as a
 ),
