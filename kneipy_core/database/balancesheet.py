@@ -70,7 +70,7 @@ class BalanceSheet(Base):
 
         with transaction_group_core(
                 session=sa.orm.object_session(self),
-                balancesheet_id=self.id, company_id=self.company_id
+                balancesheet_id=self.id, company_id=self.company_id,
                 text=text, receiptdate=receiptdate, receipt=receipt
                 ) as transaction_group:
             yield transaction_group
