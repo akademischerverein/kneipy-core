@@ -43,19 +43,6 @@ class BalanceSheet(Base):
         server_default=sa.literal('0')
     )
 
-    top_level_accounts = relationship(
-        'Account', primaryjoin=(
-            'and_(' +
-            '   Account.parent_id.is_(None),' +
-            '   Account.balancesheet_id == BalanceSheet.id' +
-            ')'
-        )
-    )
-
-    accounts = relationship(
-        'Account', back_populates='balancesheet'
-    )
-
     __table_args__ = (
         ExcludeConstraint(
             ('company_id', '='), ('daterange', '&&'),
@@ -83,7 +70,7 @@ class BalanceSheet(Base):
 
         with transaction_group_core(
                 session=sa.orm.object_session(self),
-                balancesheet_id=self.id,
+                balancesheet_id=self.id, company_id=self.company_id
                 text=text, receiptdate=receiptdate, receipt=receipt
                 ) as transaction_group:
             yield transaction_group

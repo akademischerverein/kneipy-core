@@ -1,14 +1,17 @@
-from contextlib import contextmanager
-import sqlalchemy as sa
-from .database import Product, Account, \
-    TransactionGroup, Transaction, BalanceSheet, Company
 import sys
+from contextlib import contextmanager
+
+import sqlalchemy as sa
+
 from . import database
+from .database import (Account, BalanceSheet, Company, Product, Transaction,
+                       TransactionGroup)
 
 
 class TransactionInterfaceCore():
-    def __init__(self, session, transaction_group_id, balancesheet_id):
+    def __init__(self, session, transaction_group_id, balancesheet_id, company_id):
         self.transaction_group_id = transaction_group_id
+        self.company_id = company_id
         self.balancesheet_id = balancesheet_id
         self.session = session
         self.transactions = []
@@ -25,6 +28,7 @@ class TransactionInterfaceCore():
             )
         assert amount > 0
         self.transactions.append({
+            'company_id': self.company_id,
             'balancesheet_id': self.balancesheet_id,
             'transaction_group_id': self.transaction_group_id,
             'credit_account_id': credit_account_id,
@@ -40,6 +44,7 @@ class TransactionInterfaceCore():
                            product_id, original_amount, text):
         assert original_amount > 0
         self.transactions.append({
+            'company_id': self.company_id,
             'balancesheet_id': self.balancesheet_id,
             'transaction_group_id': self.transaction_group_id,
             'cancellation_for_transaction_id': transaction_id,
@@ -98,7 +103,8 @@ class TransactionInterfaceORM(TransactionInterfaceCore):
         super().__init__(
             session=sa.orm.object_session(transaction_group),
             transaction_group_id=transaction_group.id,
-            balancesheet_id=transaction_group.balancesheet_id
+            balancesheet_id=transaction_group.balancesheet_id,
+            company_id=transaction_group.balancesheet.company_id
         )
 
     def transaction(self, credit, debit, product, amount, text):
@@ -110,8 +116,8 @@ class TransactionInterfaceORM(TransactionInterfaceCore):
         # Diese würden Invarianten der Bilanz wie "Summe der Haben-Summen
         # aller Konten ist gleich der Summe der Soll-Summen"
         # verletzen.
-        assert debit.balancesheet_id == self.balancesheet_id
-        assert debit.balancesheet == credit.balancesheet
+        assert debit.company_id == self.company_id
+        assert debit.company == credit.company
 
         return super().transaction(
             credit.id, debit.id,
@@ -148,7 +154,7 @@ def transaction_group_orm(balancesheet, text,
 
 
 @contextmanager
-def transaction_group_core(session, balancesheet_id, text,
+def transaction_group_core(session, company_id, balancesheet_id, text,
                            receiptdate, receipt):
     transaction_group_t = TransactionGroup.__table__
     insert_q = transaction_group_t.insert() \
@@ -161,7 +167,7 @@ def transaction_group_core(session, balancesheet_id, text,
     transaction_group_id = session.execute(insert_q).inserted_primary_key[1]
     ts = TransactionInterfaceCore(
         session,
-        transaction_group_id, balancesheet_id
+        transaction_group_id, balancesheet_id, company_id
     )
     yield ts
     ts.insert()
