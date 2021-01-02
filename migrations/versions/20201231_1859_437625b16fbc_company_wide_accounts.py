@@ -51,7 +51,7 @@ replacement as (
     from raw_account as src
     inner join raw_account as dest on
         src.company_id=dest.company_id and
-        (src.name=dest.name or src.person_id=dest.person_id)
+        (src.name=dest.name or (src.person_id=dest.person_id and src.external_refs=dest.external_refs))
     where src.row!=1 and dest.row=1
 )
 insert into temp select * from replacement
