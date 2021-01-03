@@ -163,6 +163,7 @@ class Account(Base, ExternalRefMixin):
             return
         if not isinstance(accounts, list):
             accounts = list(accounts)
+        accounts_copy = list(accounts)
 
         session = sa.orm.session.object_session(accounts[0])
         if INFO_CUM_AMOUNTS not in session.info:
@@ -179,7 +180,6 @@ class Account(Base, ExternalRefMixin):
         # Not doing this will likely result in a suboptimal query plan.
         # Also query in chunks of 500 accounts to account for limitations
         # of the IN sql-construct
-        accounts_by_balancesheets = collections.defaultdict(lambda: set())
         chunks = []
         while len(accounts) > 500:
             chunks.append([])
@@ -225,7 +225,7 @@ class Account(Base, ExternalRefMixin):
                             balance=r.total_debit - r.total_credit,
                             transaction_count=r.transaction_count
                         )
-        for a in accounts:
+        for a in accounts_copy:
             a._invalidate_totals_and_balance_attrs()
 
     @classmethod
