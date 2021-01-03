@@ -136,7 +136,7 @@ class ApiTest(test_util.DbTestCase):
         self.session.refresh(balancesheet)
         trx_id = balancesheet.transaction_id_seq
         balance, total_debit, total_credit = defaultdict(decimal.Decimal), defaultdict(decimal.Decimal), defaultdict(decimal.Decimal)
-        Account.load_totals_and_balances(balancesheet.company.accounts, balancesheet.id, trx_id)
+        Account.load_totals_and_balances(list(balancesheet.company.accounts), balancesheet.id, trx_id)
         for a in balancesheet.company.accounts:
             for pid, tab in a.totals_and_balances[balancesheet.id][trx_id].items():
                 balance[pid] += tab.balance
