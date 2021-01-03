@@ -121,12 +121,12 @@ where replacement.id=transaction.id and replacement.balancesheet_id=transaction.
     op.drop_constraint(op.f('fk_transaction_company_id_company'), 'transaction', type_='foreignkey')
     op.drop_constraint('credit_account', 'transaction', type_='foreignkey')
     op.drop_constraint('company', 'transaction', type_='foreignkey')
+    op.drop_constraint('uq_balancesheet_company_id_for_fk', 'balancesheet', type_='unique')
     op.create_foreign_key('debit_account', 'transaction', 'account', ['debit_account_id', 'balancesheet_id'], ['id', 'balancesheet_id'], onupdate='RESTRICT', ondelete='RESTRICT')
     op.create_foreign_key('credit_account', 'transaction', 'account', ['credit_account_id', 'balancesheet_id'], ['id', 'balancesheet_id'], onupdate='RESTRICT', ondelete='RESTRICT')
     op.drop_column('transaction', 'company_id')
     op.drop_constraint(op.f('fk_account_company_id_company'), 'account', type_='foreignkey')
     op.create_foreign_key('fk_account_balancesheet_id_balancesheet', 'account', 'balancesheet', ['balancesheet_id'], ['id'], onupdate='RESTRICT', ondelete='RESTRICT')
     op.drop_constraint('uq_account_company_id_for_fk', 'account', type_='unique')
-    op.drop_constraint('uq_balancesheet_company_id_for_fk', 'account', type_='unique')
     op.drop_column('account', 'company_id')
     # ### end Alembic commands ###
