@@ -127,5 +127,6 @@ where replacement.id=transaction.id and replacement.balancesheet_id=transaction.
     op.drop_constraint(op.f('fk_account_company_id_company'), 'account', type_='foreignkey')
     op.create_foreign_key('fk_account_balancesheet_id_balancesheet', 'account', 'balancesheet', ['balancesheet_id'], ['id'], onupdate='RESTRICT', ondelete='RESTRICT')
     op.drop_constraint('uq_account_company_id_for_fk', 'account', type_='unique')
+    op.drop_constraint('uq_balancesheet_company_id_for_fk', 'account', type_='unique')
     op.drop_column('account', 'company_id')
     # ### end Alembic commands ###
