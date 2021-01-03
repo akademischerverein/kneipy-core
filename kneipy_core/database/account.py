@@ -161,8 +161,7 @@ class Account(Base, ExternalRefMixin):
             transaction_ids = [transaction_ids]
         if not accounts or not transaction_ids or not balancesheet_id:
             return
-        if not isinstance(accounts, list):
-            accounts = list(accounts)
+        accounts = list(accounts)
         accounts_copy = list(accounts)
 
         session = sa.orm.session.object_session(accounts[0])
