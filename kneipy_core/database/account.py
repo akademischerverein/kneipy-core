@@ -224,7 +224,7 @@ class Account(Base, ExternalRefMixin):
                             balance=r.total_debit - r.total_credit,
                             transaction_count=r.transaction_count
                         )
-        for a in accounts:
+        for a in accounts_copy:
             a._invalidate_totals_and_balance_attrs()
 
     @classmethod
