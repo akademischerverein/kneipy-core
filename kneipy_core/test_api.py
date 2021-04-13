@@ -21,47 +21,47 @@ class ApiTest(test_util.DbTestCase):
         self.accounts = {
             'results': Account(
                 type=AccountTypes.PreviousResults,
-                balancesheet=self.balancesheet,
+                company=self.company,
                 name='Operational Results'
             ),
             'balances': Account(
                 type=AccountTypes.Capital,
-                balancesheet=self.balancesheet,
+                company=self.company,
                 name='Balances'
             ),
             'johndoe': Account(
                 type=AccountTypes.Person,
-                balancesheet=self.balancesheet,
+                company=self.company,
                 person=Person(name='John Doe')
             ),
             'supplier': Account(
                 type=AccountTypes.Person,
-                balancesheet=self.balancesheet,
+                company=self.company,
                 person=Person(name='Supplier Inc.')
             )
         }
         self.accounts.update({
             'profits': Account(
                 type=AccountTypes.Profits,
-                balancesheet=self.balancesheet,
+                company=self.company,
                 parent=self.accounts['results'],
                 name='Profits'
             ),
             'expenses': Account(
                 type=AccountTypes.Profits,
-                balancesheet=self.balancesheet,
+                company=self.company,
                 parent=self.accounts['results'],
                 name='Expenses'
             ),
             'bank': Account(
                 type=AccountTypes.Financial,
-                balancesheet=self.balancesheet,
+                company=self.company,
                 parent=self.accounts['balances'],
                 name='Bank Account'
             ),
             'store': Account(
                 type=AccountTypes.Capital,
-                balancesheet=self.balancesheet,
+                company=self.company,
                 parent=self.accounts['balances'],
                 name='Inventory of store'
             )
@@ -74,8 +74,8 @@ class ApiTest(test_util.DbTestCase):
     def test_create_simple_balance_sheet(self):
         self.create_simple_balance_sheet()
         n.eq_(len(self.session.query(Account).all()), len(self.accounts))
-        n.eq_(len(self.balancesheet.top_level_accounts), 4)
-        n.eq_(len(self.balancesheet.accounts), len(self.accounts))
+        n.eq_(len(self.company.top_level_accounts), 4)
+        n.eq_(len(self.company.accounts), len(self.accounts))
         n.eq_(len(self.accounts['results'].children), 2)
 
     def add_products(self):
@@ -101,16 +101,16 @@ class ApiTest(test_util.DbTestCase):
         self.create_simple_balance_sheet()
         account = self.session.query(Account) \
             .options(
-                sa.orm.joinedload(Account.balancesheet)
+                sa.orm.joinedload(Account.company)
             ).filter_by(
                 type=AccountTypes.Capital,
                 name='Balances') \
             .one()
         Account.load_cumulative_totals_and_balances(
-            [account], account.balancesheet.transaction_id_seq
+            [account], self.balancesheet.id, self.balancesheet.transaction_id_seq
         )
         n.eq_(account, self.accounts['balances'])
-        n.eq_(account.cumulative_totals_and_balance
+        n.eq_(account.cumulative_totals_and_balances[self.balancesheet.id][self.balancesheet.transaction_id_seq]
               [Product.get_currency_uuid('EUR')].balance, 0)
 
         profits = self.session.query(Account) \
@@ -123,12 +123,12 @@ class ApiTest(test_util.DbTestCase):
             .one()
         n.eq_(profits, self.accounts['profits'])
         Account.load_cumulative_totals_and_balances(
-            [profits], account.balancesheet.transaction_id_seq
+            [profits], self.balancesheet.id, self.balancesheet.transaction_id_seq
         )
-        n.eq_(profits.cumulative_totals_and_balance
+        n.eq_(profits.cumulative_totals_and_balances[self.balancesheet.id][self.balancesheet.transaction_id_seq]
               [Product.get_currency_uuid('EUR')].balance, 0)
         n.ok_(isinstance(
-            profits.cumulative_totals_and_balance
+            profits.cumulative_totals_and_balances[self.balancesheet.id][self.balancesheet.transaction_id_seq]
             [Product.get_currency_uuid('EUR')].balance, decimal.Decimal
         ))
 
@@ -136,9 +136,9 @@ class ApiTest(test_util.DbTestCase):
         self.session.refresh(balancesheet)
         trx_id = balancesheet.transaction_id_seq
         balance, total_debit, total_credit = defaultdict(decimal.Decimal), defaultdict(decimal.Decimal), defaultdict(decimal.Decimal)
-        Account.load_totals_and_balances(balancesheet.accounts, trx_id)
-        for a in balancesheet.accounts:
-            for pid, tab in a.totals_and_balances[trx_id].items():
+        Account.load_totals_and_balances(list(balancesheet.company.accounts), balancesheet.id, trx_id)
+        for a in balancesheet.company.accounts:
+            for pid, tab in a.totals_and_balances[balancesheet.id][trx_id].items():
                 balance[pid] += tab.balance
                 total_debit[pid] += tab.total_debit
                 total_credit[pid] += tab.total_credit
@@ -185,19 +185,24 @@ class ApiTest(test_util.DbTestCase):
 
         n.eq_(
             self.accounts['supplier']
-            .cumulative_totals_and_balance[Product.get_currency_uuid('EUR')]
-            .total_debit,
+            .cumulative_totals_and_balances[self.balancesheet.id]
+            [self.balancesheet.transaction_id_seq]
+            [Product.get_currency_uuid('EUR')].total_debit,
             decimal.Decimal('5.5')
         )
         n.eq_(
             self.accounts['supplier']
-            .cumulative_totals_and_balance[self.products['water'].id]
+            .cumulative_totals_and_balances[self.balancesheet.id]
+            [self.balancesheet.transaction_id_seq]
+            [self.products['water'].id]
             .total_credit,
             12
         )
         n.eq_(
             self.accounts['supplier']
-            .cumulative_totals_and_balance[self.products['beer'].id]
+            .cumulative_totals_and_balances[self.balancesheet.id]
+            [self.balancesheet.transaction_id_seq]
+            [self.products['beer'].id]
             .total_credit,
             20
         )
@@ -237,19 +242,19 @@ class ApiTest(test_util.DbTestCase):
         trx_id = self.balancesheet.transaction_id_seq
         n.eq_(
             self.accounts['store']
-            .cumulative_totals_and_balances[trx_id][Product.get_currency_uuid('EUR')]
+            .cumulative_totals_and_balances[self.balancesheet.id][trx_id][Product.get_currency_uuid('EUR')]
             .balance,
             0
         )
         n.eq_(
             self.accounts['store']
-            .cumulative_totals_and_balances[trx_id][self.products['beer'].id]
+            .cumulative_totals_and_balances[self.balancesheet.id][trx_id][self.products['beer'].id]
             .balance,
             19
         )
         n.eq_(
             self.accounts['store']
-            .cumulative_totals_and_balances[trx_id][self.products['water'].id]
+            .cumulative_totals_and_balances[self.balancesheet.id][trx_id][self.products['water'].id]
             .balance,
             11
         )
@@ -272,25 +277,25 @@ class ApiTest(test_util.DbTestCase):
         trx_id = self.balancesheet.transaction_id_seq
         n.eq_(
             self.accounts['johndoe']
-            .cumulative_totals_and_balances[trx_id][Product.get_currency_uuid('EUR')]
+            .cumulative_totals_and_balances[self.balancesheet.id][trx_id][Product.get_currency_uuid('EUR')]
             .balance,
             0
         )
         n.eq_(
             self.accounts['johndoe']
-            .cumulative_totals_and_balances[trx_id][self.products['beer'].id]
+            .cumulative_totals_and_balances[self.balancesheet.id][trx_id][self.products['beer'].id]
             .balance,
             1
         )
         n.eq_(
             self.accounts['johndoe']
-            .cumulative_totals_and_balances[trx_id][self.products['water'].id]
+            .cumulative_totals_and_balances[self.balancesheet.id][trx_id][self.products['water'].id]
             .balance,
             1
         )
         n.eq_(
             self.accounts['results']
-            .cumulative_totals_and_balances[trx_id][Product.get_currency_uuid('EUR')]
+            .cumulative_totals_and_balances[self.balancesheet.id][trx_id][Product.get_currency_uuid('EUR')]
             .balance,
             decimal.Decimal('-3.5')
         )
@@ -299,7 +304,7 @@ class ApiTest(test_util.DbTestCase):
         # Wert entspricht Guthaben (2€ in diesem Fall)
         n.eq_(
             self.accounts['bank']
-            .cumulative_totals_and_balances[trx_id][Product.get_currency_uuid('EUR')]
+            .cumulative_totals_and_balances[self.balancesheet.id][trx_id][Product.get_currency_uuid('EUR')]
             .balance,
             decimal.Decimal('-2')
         )
@@ -332,7 +337,7 @@ class ApiTest(test_util.DbTestCase):
             self.session.query(Account).filter_by(
                 id=self.accounts['bank'].id
             ).one()
-            .cumulative_totals_and_balances[trx_id][Product.get_currency_uuid('EUR')]
+            .cumulative_totals_and_balances[self.balancesheet.id][trx_id][Product.get_currency_uuid('EUR')]
             .balance,
             0
         )
@@ -370,9 +375,9 @@ class ApiTest(test_util.DbTestCase):
             )
         self.session.refresh(self.balancesheet)
         Account.load_cumulative_totals_and_balances(
-            [self.accounts["results"]], [self.balancesheet.transaction_id_seq]
+            [self.accounts["results"]], self.balancesheet.id, [self.balancesheet.transaction_id_seq]
         )
-        ctab = self.accounts['results'].cumulative_totals_and_balances[self.balancesheet.transaction_id_seq]
+        ctab = self.accounts['results'].cumulative_totals_and_balances[self.balancesheet.id][self.balancesheet.transaction_id_seq]
         n.eq_(ctab[Product.get_currency_uuid('EUR')].total_credit, decimal.Decimal('5.15'))
         n.eq_(ctab[Product.get_currency_uuid('EUR')].total_debit, decimal.Decimal('10.30'))
         n.eq_(ctab[Product.get_currency_uuid('EUR')].balance, decimal.Decimal('5.15'))
@@ -406,13 +411,13 @@ class ApiTest(test_util.DbTestCase):
         self.assert_balancesheet_invariants(self.balancesheet)
         n.eq_(
             self.accounts['supplier']
-            .cumulative_totals_and_balance[Product.get_currency_uuid('EUR')]
+            .cumulative_totals_and_balances[self.balancesheet.id][self.balancesheet.transaction_id_seq][Product.get_currency_uuid('EUR')]
             .get_product(self.session),
             self.session.query(Product).get(Product.get_currency_uuid('EUR'))
         )
         n.eq_(
             self.accounts['supplier']
-            .cumulative_totals_and_balance[self.products['beer'].id]
+            .cumulative_totals_and_balances[self.balancesheet.id][self.balancesheet.transaction_id_seq][self.products['beer'].id]
             .get_product(self.session),
             self.products['beer']
         )
