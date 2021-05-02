@@ -27,9 +27,11 @@ class Company(Base, ExternalRefMixin):
             '   Account.parent_id.is_(None),' +
             '   Account.company_id == Company.id' +
             ')'
-        )
+        ),
+        overlaps='company'
     )
 
     accounts = relationship(
-        'Account', back_populates='company'
+        'Account', back_populates='company',
+        overlaps='top_level_accounts'
     )

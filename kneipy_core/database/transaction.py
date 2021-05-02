@@ -128,7 +128,11 @@ class Transaction(Base):
         server_default=sa.FetchedValue(),
         nullable=False
     )
-    balancesheet = relationship('BalanceSheet', foreign_keys=[balancesheet_id])
+    balancesheet = relationship(
+        'BalanceSheet',
+        foreign_keys=[balancesheet_id],
+        overlaps='transaction_group, transactions, cancelled_by, cancellation_for_transaction'
+    )
 
     transaction_group_id = sa.Column(
         sa.BigInteger,
@@ -136,7 +140,8 @@ class Transaction(Base):
     )
     transaction_group = relationship(
         'TransactionGroup',
-        backref='transactions'
+        backref='transactions',
+        overlaps='balancesheet, cancelled_by, cancellation_for_transaction'
     )
 
     credit_account_id = sa.Column(
@@ -145,7 +150,8 @@ class Transaction(Base):
     )
     credit_account = relationship(
         'Account',
-        foreign_keys=[credit_account_id, balancesheet_id]
+        foreign_keys=[credit_account_id, balancesheet_id],
+        overlaps='cancelled_by'
     )
 
     debit_account_id = sa.Column(
@@ -154,14 +160,18 @@ class Transaction(Base):
     )
     debit_account = relationship(
         'Account',
-        foreign_keys=[debit_account_id, balancesheet_id]
+        foreign_keys=[debit_account_id, balancesheet_id],
+        overlaps='cancelled_by'
     )
 
     product_id = sa.Column(
         sa.ForeignKey('product.id', onupdate="RESTRICT", ondelete="RESTRICT"),
         nullable=False
     )
-    product = relationship('Product')
+    product = relationship(
+        'Product',
+        overlaps='cancelled_by'
+    )
 
     amount = sa.Column(SA_AMOUNT_TYPE, nullable=False)
 
@@ -175,7 +185,12 @@ class Transaction(Base):
     cancellation_for_transaction = relationship(
         'Transaction',
         remote_side=[balancesheet_id, id, product_id, credit_account_id, debit_account_id],
-        backref=backref('cancelled_by', uselist=False)
+        backref=backref(
+            'cancelled_by',
+            uselist=False,
+            overlaps='transaction_group, transactions, cancelled_by, credit_account, debit_account, product'
+        ),
+        overlaps='transaction_group, transactions, cancelled_by, credit_account, debit_account, product'
     )
 
 
