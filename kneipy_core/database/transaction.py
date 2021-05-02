@@ -136,7 +136,6 @@ class Transaction(Base):
     )
     transaction_group = relationship(
         'TransactionGroup',
-        viewonly=True,
         backref='transactions'
     )
 
@@ -146,7 +145,6 @@ class Transaction(Base):
     )
     credit_account = relationship(
         'Account',
-        viewonly=True,
         foreign_keys=[credit_account_id, balancesheet_id]
     )
 
@@ -156,7 +154,6 @@ class Transaction(Base):
     )
     debit_account = relationship(
         'Account',
-        viewonly=True,
         foreign_keys=[debit_account_id, balancesheet_id]
     )
 
@@ -178,8 +175,7 @@ class Transaction(Base):
     cancellation_for_transaction = relationship(
         'Transaction',
         remote_side=[balancesheet_id, id, product_id, credit_account_id, debit_account_id],
-        backref=backref('cancelled_by', uselist=False),
-        viewonly=True
+        backref=backref('cancelled_by', uselist=False)
     )
 
 
