@@ -1,8 +1,8 @@
 stages:
  - test
 
-.install-deps-stretch: &install-deps-stretch
-  image: debian:stretch
+.install-deps-bullseye: &install-deps-bullseye
+  image: debian:bullseye
   before_script:
   # Configure apt caching
   - echo $CI_PROJECT_DIR
@@ -11,11 +11,8 @@ stages:
   - mkdir -p "${APT_STATE_LISTS}/partial" && mkdir -p "${APT_CACHE_ARCHIVES}/partial"
   # Install dependencies
   - apt-get -qq update -y
-  - apt-get -qq install -y build-essential python3-pip python3-virtualenv python3-dev wget ca-certificates gnupg2
-  - wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
-  - echo "deb http://apt.postgresql.org/pub/repos/apt/ stretch-pgdg main" > /etc/apt/sources.list.d/pgdg.list
-  - apt-get -qq update -y
-  - apt-get -qq install -y postgresql-client-10 libpq5 libpq-dev
+  - apt-get -qq install -y postgresql-client-13 libpq5 libpq-dev
+  - apt-get -qq install -y build-essential python3-pip python3-virtualenv python3-dev
 
 .install-deps-buster: &install-deps-buster
   image: debian:buster
@@ -37,6 +34,14 @@ stages:
 .using-pg11: &using-pg11
   services:
   - postgres:11
+
+.using-pg12: &using-pg12
+  services:
+  - postgres:12
+
+.using-pg13: &using-pg13
+  services:
+  - postgres:13
 
 .run-tests: &run-tests
   script:
@@ -66,12 +71,6 @@ stages:
       - .cache
       - .apt
 
-test-stretch-pg10:
-  <<: *install-deps-stretch
-  <<: *run-tests
-  <<: *using-pg10
-  stage: test
-
 test-buster-pg10:
   <<: *install-deps-buster
   <<: *run-tests
@@ -82,4 +81,28 @@ test-buster-pg11:
   <<: *install-deps-buster
   <<: *run-tests
   <<: *using-pg11
+  stage: test
+
+test-bullseye-pg10:
+  <<: *install-deps-bullseye
+  <<: *run-tests
+  <<: *using-pg10
+  stage: test
+
+test-bullseye-pg11:
+  <<: *install-deps-bullseye
+  <<: *run-tests
+  <<: *using-pg11
+  stage: test
+
+test-bullseye-pg12:
+  <<: *install-deps-bullseye
+  <<: *run-tests
+  <<: *using-pg12
+  stage: test
+
+test-bullseye-pg13:
+  <<: *install-deps-bullseye
+  <<: *run-tests
+  <<: *using-pg13
   stage: test
