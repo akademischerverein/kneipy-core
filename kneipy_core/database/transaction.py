@@ -116,6 +116,9 @@ class Transaction(Base):
         ),
         nullable=False
     )
+    company = relationship(
+        'Company'
+    )
     balancesheet_id = sa.Column(
         sa.ForeignKey(
             'balancesheet.id',

@@ -28,7 +28,8 @@ class Company(Base, ExternalRefMixin):
             '   Account.company_id == Company.id' +
             ')'
         ),
-        overlaps='company'
+        overlaps='company',
+        lazy=True
     )
 
     accounts = relationship(
