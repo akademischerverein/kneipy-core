@@ -6,8 +6,8 @@ Under MIT license
 
 import uuid
 
-from sqlalchemy.types import CHAR, TypeDecorator
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.types import CHAR, TypeDecorator
 
 
 class GUID(TypeDecorator):
@@ -18,6 +18,7 @@ class GUID(TypeDecorator):
 
     """
     impl = CHAR
+    cache_ok = True
 
     def load_dialect_impl(self, dialect):
         if dialect.name == 'postgresql':
