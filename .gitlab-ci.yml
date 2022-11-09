@@ -43,6 +43,14 @@ stages:
   services:
   - postgres:13
 
+.using-pg14: &using-pg14
+  services:
+  - postgres:14
+
+.using-pg15: &using-pg15
+  services:
+  - postgres:15
+
 .run-tests: &run-tests
   script:
   - mkdir -p $XDG_CACHE_HOME
@@ -105,4 +113,16 @@ test-bullseye-pg13:
   <<: *install-deps-bullseye
   <<: *run-tests
   <<: *using-pg13
+  stage: test
+
+test-bullseye-pg14:
+  <<: *install-deps-bullseye
+  <<: *run-tests
+  <<: *using-pg14
+  stage: test
+
+test-bullseye-pg15:
+  <<: *install-deps-bullseye
+  <<: *run-tests
+  <<: *using-pg15
   stage: test
