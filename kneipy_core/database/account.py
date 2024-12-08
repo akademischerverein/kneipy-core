@@ -50,6 +50,24 @@ class AccountTypes(enum.Enum):
 
     Person = "Personenkonten"
 
+    # Anlagevermögen
+    #   Immaterielle Vermögensgegenstände
+    ConcessionsLicenses = "Konzessionen, Lizenzen und ähnliche Rechte und Werte"
+    Goodwill = "Geschäfts- oder Firmenwert"
+    AdvancePayments = "geleistete Anzahlungen"
+    #   Sachanlagen
+    PlotsRightsBuildings = "Grundstücke. grundstücksgleiche Rechte und Bauten"
+    TechnicalEquipmentAndMachinery = "technische Anlagen und Maschinen"
+    OtherAttachmentsFixtures = "andere Anlagen. Betriebs- und Geschäftsausstattung"
+    AdvancePaymentsConstruction = "geleistete Anzahlungen und Anlagen im Bau"
+    #   Finanzanlagen
+    SharesAffiliatedCompanies = "Anteile an verbundenen Unternehmen"
+    LoansAffiliatedCompanies = "Ausleihungen an verbundene Unternehmen"
+    Investments = "Beteiligungen"
+    LoansInvestments = "Ausleihungen an Unternehmen. mit denen ein Beteil.verh. besteht"
+    Securites = "Wertpapiere des Anlagevermögens"
+    OtherLoads = "sonstige Ausleihungen"
+
 
 class Account(Base, ExternalRefMixin):
     __tablename__ = "account"
