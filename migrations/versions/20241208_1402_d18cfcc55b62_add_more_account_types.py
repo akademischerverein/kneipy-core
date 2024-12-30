@@ -6,16 +6,23 @@ Create Date: 2024-12-08 14:02:52.934250
 
 """
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import postgresql
-
 
 # revision identifiers, used by Alembic.
 revision = 'd18cfcc55b62'
 down_revision = '437625b16fbc'
 branch_labels = None
 depends_on = None
+
+
+def constraint_exists(name):
+    rows = op.get_bind().execute(sa.sql.text("""
+    SELECT * FROM information_schema.check_constraints WHERE
+    constraint_schema = 'public' AND constraint_name = :name
+    """), {"name": name}).fetchall()
+    return len(rows) > 0
 
 
 def change_enum(table, column_names, name, new_values):
@@ -128,3 +135,15 @@ def downgrade():
     )
     op.create_unique_constraint(op.f('uq_account_type'), 'account', ['type', 'id'])
     op.create_foreign_key(op.f('fk_account_parent_id_account'), 'account', 'account', ['parent_id', 'parent_type'], ['id', 'type'], onupdate='RESTRICT', ondelete='RESTRICT')
+    if not constraint_exists('ck_account_type_based_null_check'):
+        op.create_check_constraint(
+            op.f('ck_account_type_based_null_check'),
+            'account',
+            """
+            (type = 'Person' AND person_id IS NOT NULL AND name IS NULL) OR
+            (type = 'Temp'   AND person_id IS NULL     AND name IS NULL) OR
+            (type NOT IN ('Person', 'Temp') AND
+                person_id IS NULL AND name IS NOT NULL
+            )
+            """
+        )
