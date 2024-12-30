@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-import os
 import glob
+import os
 
 from setuptools import find_packages
 
@@ -21,7 +21,7 @@ except FileNotFoundError:
     README = ""
 
 REQUIREMENTS = [
-    'SQLAlchemy>=1.4.0',
+    'SQLAlchemy>=1.4.0,<2',
     'psycopg2-binary>=2.7.3.1',
     'alembic>=0.9.5',
     'attrs',
