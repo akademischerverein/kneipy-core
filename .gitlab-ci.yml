@@ -2,7 +2,7 @@ stages:
  - test
 
 .install-deps-bullseye: &install-deps-bullseye
-  image: debian:bullseye
+  image: debian:trixie
   before_script:
   # Configure apt caching
   - echo $CI_PROJECT_DIR
@@ -15,7 +15,7 @@ stages:
   - apt-get -qq install -y build-essential python3-pip python3-virtualenv python3-dev
 
 .install-deps-buster: &install-deps-buster
-  image: debian:buster
+  image: debian:trixie
   before_script:
   # Configure apt caching
   - echo $CI_PROJECT_DIR
