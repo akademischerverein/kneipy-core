@@ -29,27 +29,27 @@ stages:
 
 .using-pg10: &using-pg10
   services:
-  - postgres:10
+  - postgres:18
 
 .using-pg11: &using-pg11
   services:
-  - postgres:11
+  - postgres:18
 
 .using-pg12: &using-pg12
   services:
-  - postgres:12
+  - postgres:18
 
 .using-pg13: &using-pg13
   services:
-  - postgres:13
+  - postgres:18
 
 .using-pg14: &using-pg14
   services:
-  - postgres:14
+  - postgres:18
 
 .using-pg15: &using-pg15
   services:
-  - postgres:15
+  - postgres:18
 
 .run-tests: &run-tests
   script:
