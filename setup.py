@@ -21,7 +21,7 @@ except FileNotFoundError:
     README = ""
 
 REQUIREMENTS = [
-    'SQLAlchemy>=1.4.0,<2',
+    'SQLAlchemy>=2.0.44,<3',
     'psycopg2-binary>=2.7.3.1',
     'alembic>=0.9.5',
     'attrs',
